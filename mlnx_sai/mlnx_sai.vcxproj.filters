@@ -1,0 +1,444 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\sai">
+      <UniqueIdentifier>{87d580a9-dc22-4443-911f-c714b6ae76ad}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="inc\sai\sai.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saiacl.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saibridge.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saibuffer.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saifdb.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saihash.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saihostif.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\sailag.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saimirror.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saineighbor.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\sainexthop.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\sainexthopgroup.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saiobject.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saipolicer.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saiport.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saiqosmap.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saiqueue.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\sairoute.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\sairouterinterface.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saisamplepacket.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saischeduler.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saischedulergroup.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saistatus.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saistp.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saiswitch.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saitypes.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saitunnel.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saiudf.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saivirtualrouter.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saivlan.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saiwred.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\mlnx_sai.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai_windows.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\meta\saimetadatautils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\meta\saimetadata.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saimpls.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saitam.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saibfd.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saidtel.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\sail2mcgroup.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saiisolationgroup.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\experimental\saiextensions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\experimental\saiswitchextensions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\experimental\saitypesextensions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\flextrum_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_api.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_range_match.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\mlnx_flex_bitmap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\mlnx_flex_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sharedlib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saicounter.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saidebugcounter.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\sainat.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saimacsec.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saisystemport.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_action.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_action_init.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_api_master.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_bitmap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_parser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sdk\sx_api_bmtor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sdk\sx_bmtor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dbgdump\mlnx_sai_dbg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saimymac.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saiipsec.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saisrv6.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saiversion.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\mlnx_sai_acl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_bridge.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_buffer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_fdb.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_hash.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_host_interface.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_interfacequery.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_lag.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_mirror.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_neighbor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_nexthop.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_nexthopgroup.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_object.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_policer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_port.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_qosmaps.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_queue.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_rif.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_route.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_router.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_samplepacket.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_scheduler.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_scheduler_group.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_stp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_switch.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_tunnel.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_udf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_vlan.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_wred.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_acl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_bridge.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_buffer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_hash.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_hostintf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_mirror.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_policer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_port.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_qosmaps.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_queue.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_samplepacket.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_scheduler.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_stp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_tunnel.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_udf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_vlan.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_wred.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\meta\saimetadata.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\meta\saimetadatautils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\meta\saiserialize.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_l2mcgroup.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_base_api.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_base_range_match.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_debug_counter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_debug_counter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_bfd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_bfd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_base_acl_validation.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_base_action_init.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_base_bitmap.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_base_user_init.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_parser.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sdk\sx_api_bmtor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_counter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_isolation_group.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_isolation_group.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_gp_reg.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_issu_storage.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_nhg_nhgm.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_utils_eth.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_object_eth.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_interfacequery_eth.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,13 @@
+Source: mlnx-sai
+Priority: extra
+Maintainer: Adir Atias <adira@mellanox.com>
+Build-Depends: libxml2-dev,libxslt1-dev,iproute2,applibs-dev
+Standards-Version:
+Section: libs
+Homepage: http://www.mellanox.com
+
+Package: mlnx-sai
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Provides: libsai, libsai-dev
+Description: contains SAI implementation for Mellanox hardware
