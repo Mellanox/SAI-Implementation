@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+
+_prefix  ?= /usr
+
+%:
+	dh $@
+
+override_dh_shlibdeps:
+	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
+
+override_dh_auto_build:
+	make ${make_extra_flags}
+
+override_dh_auto_configure:
+	./autogen.sh
+	./configure --prefix=${_prefix} --enable-debug ${configure_options}
