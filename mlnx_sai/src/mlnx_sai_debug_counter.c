@@ -183,10 +183,12 @@ static const mlnx_dbg_counter_drop_reason_info_t mlnx_drop_counter_in_drop_reaso
     [SAI_IN_DROP_REASON_SIP_BC] = REASON(TRAP_LIST(
                                              SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_BC), DROP_REASON_TYPE_IN_L3),
     [SAI_IN_DROP_REASON_DIP_LOCAL] = REASON(TRAP_LIST(
-                                                SX_TRAP_ID_DISCARD_ING_ROUTER_DIP_LOCAL_NET),
+                                                SX_TRAP_ID_DISCARD_ING_ROUTER_DIP_LOCAL_NET,
+                                                SX_TRAP_ID_IPV6_LINK_LOCAL_DST),
                                             DROP_REASON_TYPE_IN_L3),
     [SAI_IN_DROP_REASON_DIP_LINK_LOCAL] = REASON(TRAP_LIST(
-                                                     SX_TRAP_ID_DISCARD_ING_ROUTER_DIP_LINK_LOCAL),
+                                                     SX_TRAP_ID_DISCARD_ING_ROUTER_DIP_LINK_LOCAL,
+                                                     SX_TRAP_ID_IPV6_LINK_LOCAL_SRC),
                                                  DROP_REASON_TYPE_IN_L3),
     [SAI_IN_DROP_REASON_SIP_LINK_LOCAL] = REASON(TRAP_LIST(
                                                      SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_LINK_LOCAL),
