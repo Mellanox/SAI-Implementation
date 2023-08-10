@@ -117,15 +117,12 @@ static const sai_vendor_attribute_entry_t sched_group_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static size_t scheduler_group_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+const mlnx_obj_type_attrs_info_t          mlnx_sched_group_obj_type_info =
+{ sched_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
+static mlnx_sched_obj_t * group_get(mlnx_port_config_t *port, uint8_t level, uint8_t index)
 {
-    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
-
-    return snprintf(str, max_len, "[log_port:0x%X, sched_hierarchy.groups[%u][%u]",
-                    mlnx_oid.id.u32, mlnx_oid.ext.bytes[0], mlnx_oid.ext.bytes[1]);
+    return &port->sched_hierarchy.groups[level][index];
 }
-const mlnx_obj_type_attrs_info_t mlnx_sched_group_obj_type_info =
-{ sched_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY(), scheduler_group_info_print};
 
 static sx_cos_ets_element_config_t * sched_obj_to_ets(mlnx_sched_obj_t *obj, sx_cos_ets_element_config_t *ets)
 {
@@ -265,6 +262,21 @@ static sai_status_t ets_list_load(sx_port_log_id_t port_id, sx_cos_ets_element_c
     return status;
 }
 
+static void mlnx_sched_group_key_to_str(_In_ sai_object_id_t group_id, _Out_ char *key_str)
+{
+    sx_port_log_id_t port_id;
+    sai_status_t     status;
+    uint8_t          index,   level;
+
+    status = mlnx_sched_group_parse_id(group_id, &port_id, &level, &index);
+    if (SAI_ERR(status)) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid scheduler group id");
+        return;
+    }
+
+    snprintf(key_str, MAX_KEY_STR_LEN, "scheduler group id %x:%u:%u", port_id, level, index);
+}
+
 static mlnx_iter_ret_t groups_child_counter(mlnx_port_config_t *port, mlnx_sched_obj_t *obj, void *arg)
 {
     mlnx_sched_iter_ctx_t *ctx = arg;
@@ -338,12 +350,6 @@ static sai_status_t mlnx_sched_group_child_count_get(_In_ const sai_object_key_t
     if (SAI_ERR(status)) {
         goto out;
     }
-    if (mlnx_port_is_sai_lag_member(port)) {
-        status = mlnx_port_fetch_lag_if_lag_member(&port);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-    }
 
     ctx.sai_status = SAI_STATUS_SUCCESS;
     ctx.arg = &count;
@@ -369,13 +375,12 @@ static sai_status_t mlnx_sched_group_child_list_get(_In_ const sai_object_key_t 
 {
     mlnx_port_config_t   *port;
     sai_object_list_t     child_list = {0};
-    sx_port_log_id_t      port_id, lag_id;
+    sx_port_log_id_t      port_id;
     mlnx_sched_iter_ctx_t ctx;
     sai_status_t          status;
     uint32_t              count = 0;
     uint8_t               idx;
-    uint8_t               lvl, lvl_tmp;
-    uint32_t              i, is_lag_member = 0;
+    uint8_t               lvl;
 
     status = mlnx_sched_group_parse_id(key->key.object_id, &port_id, &lvl, &idx);
     if (status != SAI_STATUS_SUCCESS) {
@@ -388,13 +393,6 @@ static sai_status_t mlnx_sched_group_child_list_get(_In_ const sai_object_key_t 
     status = mlnx_port_by_log_id(port_id, &port);
     if (SAI_ERR(status)) {
         goto out;
-    }
-    is_lag_member = mlnx_port_is_sai_lag_member(port);
-    if (is_lag_member) {
-        status = mlnx_port_fetch_lag_if_lag_member(&port);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
     }
 
     ctx.sai_status = SAI_STATUS_SUCCESS;
@@ -419,29 +417,6 @@ static sai_status_t mlnx_sched_group_child_list_get(_In_ const sai_object_key_t 
     status = groups_child_foreach(port, lvl, idx, groups_child_to_objlist, &ctx);
     if (SAI_ERR(status)) {
         goto out;
-    }
-    if (is_lag_member) {
-        for (i = 0; i < child_list.count; i++) {
-            if (lvl == 0) {
-                status = mlnx_sched_group_parse_id(child_list.list[i], &lag_id, &lvl_tmp, &idx);
-                if (status != SAI_STATUS_SUCCESS) {
-                    goto out;
-                }
-                status = mlnx_create_sched_group(port_id, lvl_tmp, idx, &child_list.list[i]);
-                if (status != SAI_STATUS_SUCCESS) {
-                    goto out;
-                }
-            } else {
-                status = mlnx_queue_parse_id(child_list.list[i], &lag_id, &idx);
-                if (status != SAI_STATUS_SUCCESS) {
-                    goto out;
-                }
-                status = mlnx_create_queue_object(port_id, idx, &child_list.list[i]);
-                if (status != SAI_STATUS_SUCCESS) {
-                    goto out;
-                }
-            }
-        }
     }
 
     status = mlnx_fill_objlist(child_list.list, child_list.count, &value->objlist);
@@ -524,12 +499,6 @@ static sai_status_t mlnx_sched_group_max_childs_get(_In_ const sai_object_key_t 
     if (SAI_ERR(status)) {
         goto out;
     }
-    if (mlnx_port_is_sai_lag_member(port)) {
-        status = mlnx_port_fetch_lag_if_lag_member(&port);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-    }
 
     value->u8 = group_get(port, level, index)->max_child_count;
 
@@ -565,12 +534,6 @@ static sai_status_t mlnx_sched_group_profile_get(_In_ const sai_object_key_t   *
     status = mlnx_port_by_log_id(port_id, &port);
     if (SAI_ERR(status)) {
         goto out;
-    }
-    if (mlnx_port_is_sai_lag_member(port)) {
-        status = mlnx_port_fetch_lag_if_lag_member(&port);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
     }
 
     value->oid = group_get(port, level, index)->scheduler_id;
@@ -729,7 +692,6 @@ static mlnx_iter_ret_t sched_obj_reset(mlnx_port_config_t *port, mlnx_sched_obj_
 {
     mlnx_sched_iter_ctx_t *ctx = arg;
     sai_object_id_t        group_id;
-    sx_port_log_id_t       port_id;
 
     assert(ctx != NULL);
 
@@ -755,12 +717,7 @@ static mlnx_iter_ret_t sched_obj_reset(mlnx_port_config_t *port, mlnx_sched_obj_
     obj->parent_id = SAI_NULL_OBJECT_ID;
     port->sched_hierarchy.groups_count[obj->level]--;
 
-    if (mlnx_port_is_lag_member(port)) {
-        port_id = mlnx_port_get_lag_id(port);
-    } else {
-        port_id = port->logical;
-    }
-    ctx->sai_status = mlnx_sched_objlist_to_ets_update(port_id, obj, 1);
+    ctx->sai_status = mlnx_sched_objlist_to_ets_update(port->logical, obj, 1);
     if (SAI_ERR(ctx->sai_status)) {
         return ITER_STOP;
     }
@@ -819,14 +776,21 @@ static sai_status_t mlnx_create_scheduler_group(_Out_ sai_object_id_t      *sche
     sai_object_id_t              parent_group_id = SAI_NULL_OBJECT_ID;
     sai_object_id_t              scheduler_id = SAI_NULL_OBJECT_ID;
     mlnx_sched_obj_t            *sched_obj = NULL;
+    char                         list_str[MAX_LIST_VALUE_STR_LEN];
 
     SX_LOG_ENTER();
 
-    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER_GROUP, scheduler_group_id);
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER_GROUP,
+                                    sched_group_vendor_attribs,
+                                    SAI_COMMON_API_CREATE);
+
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
-    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER_GROUP);
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER_GROUP, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create scheduler group, %s\n", list_str);
 
     /* Handle SAI_SCHEDULER_GROUP_ATTR_PORT_ID */
     status = find_attrib_in_list(attr_count, attr_list, SAI_SCHEDULER_GROUP_ATTR_PORT_ID,
@@ -876,12 +840,6 @@ static sai_status_t mlnx_create_scheduler_group(_Out_ sai_object_id_t      *sche
         goto out;
     }
 
-    if (mlnx_port_is_sai_lag_member(port)) {
-        status = mlnx_port_fetch_lag_if_lag_member(&port);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-    }
     status = mlnx_sched_hierarchy_reset(port);
     if (SAI_ERR(status)) {
         goto out;
@@ -947,8 +905,8 @@ static sai_status_t mlnx_create_scheduler_group(_Out_ sai_object_id_t      *sche
 
     port->sched_hierarchy.groups_count[level]++;
 
-    MLNX_LOG_OID_CREATED(*scheduler_group_id);
-
+    SX_LOG_NTC("Created scheduler group %" PRIx64 " at port %x level %u index %u\n",
+               *scheduler_group_id, port_id, sched_obj->level, sched_obj->index);
 out:
     sai_qos_db_sync();
     sai_qos_db_unlock();
@@ -986,8 +944,6 @@ static sai_status_t mlnx_remove_scheduler_group(_In_ sai_object_id_t scheduler_g
 
     SX_LOG_ENTER();
 
-    MLNX_LOG_OID_REMOVE(scheduler_group_id);
-
     status = mlnx_sched_group_parse_id(scheduler_group_id, &port_id, &level, &index);
     if (SAI_ERR(status)) {
         SX_LOG_EXIT();
@@ -999,12 +955,6 @@ static sai_status_t mlnx_remove_scheduler_group(_In_ sai_object_id_t scheduler_g
     status = mlnx_port_by_log_id(port_id, &port);
     if (SAI_ERR(status)) {
         goto out;
-    }
-    if (mlnx_port_is_sai_lag_member(port)) {
-        status = mlnx_port_fetch_lag_if_lag_member(&port);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
     }
 
     if (!group_get(port, level, index)->is_used) {
@@ -1038,6 +988,8 @@ static sai_status_t mlnx_remove_scheduler_group(_In_ sai_object_id_t scheduler_g
 
     port->sched_hierarchy.groups_count[level]--;
 
+    SX_LOG_NTC("Removed scheduler group on log port id %x level %u index %u\n",
+               port_id, level, index);
 out:
     sai_qos_db_sync();
     sai_qos_db_unlock();
@@ -1058,8 +1010,16 @@ static sai_status_t mlnx_set_scheduler_group_attribute(_In_ sai_object_id_t     
                                                        _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = scheduler_group_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+    sai_status_t           status;
 
-    return sai_set_attribute(&key, SAI_OBJECT_TYPE_SCHEDULER_GROUP, attr);
+    SX_LOG_ENTER();
+
+    mlnx_sched_group_key_to_str(scheduler_group_id, key_str);
+    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_SCHEDULER_GROUP,
+                               sched_group_vendor_attribs, attr);
+    SX_LOG_EXIT();
+    return status;
 }
 
 /**
@@ -1078,29 +1038,25 @@ static sai_status_t mlnx_get_scheduler_group_attribute(_In_ sai_object_id_t     
                                                        _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = scheduler_group_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+    sai_status_t           status;
 
-    return sai_get_attributes(&key, SAI_OBJECT_TYPE_SCHEDULER_GROUP, attr_count, attr_list);
+    SX_LOG_ENTER();
+
+    mlnx_sched_group_key_to_str(scheduler_group_id, key_str);
+    status = sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_SCHEDULER_GROUP,
+                                sched_group_vendor_attribs, attr_count, attr_list);
+    SX_LOG_EXIT();
+    return status;
 }
 
 /* DB read lock is needed */
-/**
- * @brief copy the corresponding mlnx_sched_obj_t of group(sai db) or queue->sched_obj(sai qos db)
- *
- * @param[in] port - it can be a real port or lag, if the port is a lag member, the lag's db/qos db
- *                   will be used to do the copy
- * @param[out] sch_obj - the destination of the copy
- * @param[in] sai_obj - the sched obj id
- *
- * @return SAI_STATUS_SUCCESS on success
- *        Failure status code on error
- */
 static sai_status_t sai_obj_to_sched_obj(_In_ mlnx_port_config_t *port,
                                          _Out_ mlnx_sched_obj_t  *sch_obj,
                                          _In_ sai_object_id_t     sai_obj)
 {
     mlnx_qos_queue_config_t *queue;
     sx_port_log_id_t         port_id;
-    mlnx_port_config_t      *port_tmp;
     sai_status_t             status;
     uint8_t                  level;
     uint8_t                  index;
@@ -1115,15 +1071,8 @@ static sai_status_t sai_obj_to_sched_obj(_In_ mlnx_port_config_t *port,
         }
 
         if (port->logical != port_id) {
-            status = mlnx_port_by_log_id(port_id, &port_tmp);
-            if (SAI_ERR(status)) {
-                return status;
-            }
-            if (port_tmp->lag_id != port->logical) {
-                SX_LOG_ERR("Invalid queue logical port id %x\n", port_id);
-                return SAI_STATUS_INVALID_PARAMETER;
-            }
-            port_id = port_tmp->lag_id;
+            SX_LOG_ERR("Invalid queue logical port id %x\n", port_id);
+            return SAI_STATUS_INVALID_PARAMETER;
         }
 
         status = mlnx_queue_cfg_lookup(port_id, index, &queue);
@@ -1139,20 +1088,8 @@ static sai_status_t sai_obj_to_sched_obj(_In_ mlnx_port_config_t *port,
         }
 
         if (port->logical != port_id) {
-            status = mlnx_port_by_log_id(port_id, &port_tmp);
-            if (SAI_ERR(status)) {
-                return status;
-            }
-            if (port_tmp->lag_id != port->logical) {
-                SX_LOG_ERR("Invalid scheduler group logical port id %x\n", port_id);
-                return SAI_STATUS_INVALID_PARAMETER;
-            }
-        } else if (mlnx_port_is_sai_lag_member(port)) {
-            status = mlnx_port_fetch_lag_if_lag_member(&port);
-            if (SAI_ERR(status)) {
-                SX_LOG_ERR("Invalid lag of logical port id %x\n", port->logical);
-                return SAI_STATUS_INVALID_PARAMETER;
-            }
+            SX_LOG_ERR("Invalid scheduler group logical port id %x\n", port_id);
+            return SAI_STATUS_INVALID_PARAMETER;
         }
 
         memcpy(sch_obj, group_get(port, level, index), sizeof(*sch_obj));
@@ -1231,12 +1168,6 @@ static sai_status_t sched_group_add_or_del_child_list(sai_object_id_t       pare
             status = mlnx_port_by_log_id(port_id, &port);
             if (SAI_ERR(status)) {
                 goto out;
-            }
-            if (mlnx_port_is_sai_lag_member(port)) {
-                status = mlnx_port_fetch_lag_if_lag_member(&port);
-                if (SAI_ERR(status)) {
-                    goto out;
-                }
             }
 
             parent_sch_obj = group_get(port, parent_level, parent_index);
@@ -1327,16 +1258,6 @@ static sai_status_t sched_group_add_or_del_child_list(sai_object_id_t       pare
 
     sch_child.next_index = (cmd == LIST_CMD_ADD) ? parent_index : INVALID_INDEX;
 
-    if (mlnx_port_is_sai_lag_member(port)) {
-        status = mlnx_port_fetch_lag_if_lag_member(&port);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-    }
-    port_id = port->logical;
-    if (mlnx_port_is_sdk_lag_member_not_sai(port)) {
-        port_id = mlnx_port_get_lag_id(port);
-    }
     if ((sch_child.type == MLNX_SCHED_OBJ_QUEUE) && (cmd == LIST_CMD_ADD)) {
         /* If created levels count < MAX_SCHED_LEVELS then we need re-apply scheduler parameters
          * for queue to the lower level (sub-group) */

@@ -1,5 +1,5 @@
 meta/saiserialize.lo: \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saiserialize.c \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/meta/saiserialize.c \
  /usr/include/stdc-predef.h /usr/include/arpa/inet.h \
  /usr/include/features.h /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
@@ -81,79 +81,78 @@ meta/saiserialize.lo: \
  /usr/include/strings.h \
  /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
  /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sai.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiacl.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saitypes.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sai.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiacl.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saitypes.h \
  /usr/lib/gcc/x86_64-linux-gnu/10/include/stdbool.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saibridge.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saibuffer.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saicounter.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saifdb.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saihash.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saihostif.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiipmcgroup.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiipmc.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiipsec.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sail2mcgroup.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sail2mc.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sailag.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimacsec.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimcastfdb.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimirror.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimpls.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saineighbor.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sainexthopgroup.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sainexthop.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiobject.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saifdb.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimcastfdb.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sail2mc.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiipmc.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saineighbor.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sairoute.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimpls.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sainat.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saisrv6.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentalbmtor.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saipolicer.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiport.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiqosmap.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiqueue.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sairoute.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sairouterinterface.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sairpfgroup.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saisamplepacket.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saischedulergroup.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saischeduler.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saisrv6.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saistatus.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saistp.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiswitch.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saisystemport.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saitam.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saitunnel.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saitypes.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiudf.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saivirtualrouter.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saivlan.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiwred.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saidtel.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saibfd.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sainat.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiisolationgroup.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saidebugcounter.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimymac.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saigenericprogrammable.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiversion.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saimetadatautils.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saimetadatatypes.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saimetadata.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiextensions.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saitypesextensions.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiswitchextensions.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentalbmtor.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saimetadatalogger.h \
- /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saiserialize.h
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saibridge.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saibuffer.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saicounter.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saifdb.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saihash.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saihostif.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiipmcgroup.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiipmc.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiipsec.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sail2mcgroup.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sail2mc.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sailag.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saimacsec.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saimcastfdb.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saimirror.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saimpls.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saineighbor.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sainexthopgroup.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sainexthop.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiobject.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saifdb.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saimcastfdb.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sail2mc.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiipmc.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saineighbor.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sairoute.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saimpls.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sainat.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saisrv6.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentalbmtor.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saipolicer.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiport.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiqosmap.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiqueue.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sairoute.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sairouterinterface.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sairpfgroup.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saisamplepacket.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saischedulergroup.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saischeduler.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saisrv6.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saistatus.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saistp.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiswitch.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saisystemport.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saitam.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saitunnel.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saitypes.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiudf.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saivirtualrouter.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saivlan.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiwred.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saidtel.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saibfd.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sainat.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiisolationgroup.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saidebugcounter.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saimymac.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiversion.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/meta/saimetadatautils.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/meta/saimetadatatypes.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/meta/saimetadata.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/experimental/saiextensions.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/experimental/saitypesextensions.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/experimental/saiswitchextensions.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentalbmtor.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/meta/saimetadatalogger.h \
+ /home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/meta/saiserialize.h
 /usr/include/stdc-predef.h:
 /usr/include/arpa/inet.h:
 /usr/include/features.h:
@@ -249,76 +248,75 @@ meta/saiserialize.lo: \
 /usr/include/strings.h:
 /usr/include/x86_64-linux-gnu/bits/strings_fortified.h:
 /usr/include/x86_64-linux-gnu/bits/string_fortified.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sai.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiacl.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saitypes.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sai.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiacl.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saitypes.h:
 /usr/lib/gcc/x86_64-linux-gnu/10/include/stdbool.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saibridge.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saibuffer.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saicounter.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saifdb.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saihash.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saihostif.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiipmcgroup.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiipmc.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiipsec.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sail2mcgroup.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sail2mc.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sailag.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimacsec.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimcastfdb.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimirror.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimpls.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saineighbor.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sainexthopgroup.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sainexthop.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiobject.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saifdb.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimcastfdb.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sail2mc.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiipmc.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saineighbor.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sairoute.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimpls.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sainat.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saisrv6.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentalbmtor.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saipolicer.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiport.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiqosmap.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiqueue.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sairoute.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sairouterinterface.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sairpfgroup.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saisamplepacket.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saischedulergroup.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saischeduler.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saisrv6.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saistatus.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saistp.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiswitch.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saisystemport.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saitam.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saitunnel.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saitypes.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiudf.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saivirtualrouter.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saivlan.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiwred.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saidtel.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saibfd.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sainat.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiisolationgroup.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saidebugcounter.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimymac.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saigenericprogrammable.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiversion.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saimetadatautils.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saimetadatatypes.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saimetadata.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiextensions.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saitypesextensions.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiswitchextensions.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentalbmtor.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saimetadatalogger.h:
-/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saiserialize.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saibridge.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saibuffer.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saicounter.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saifdb.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saihash.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saihostif.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiipmcgroup.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiipmc.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiipsec.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sail2mcgroup.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sail2mc.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sailag.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saimacsec.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saimcastfdb.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saimirror.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saimpls.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saineighbor.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sainexthopgroup.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sainexthop.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiobject.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saifdb.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saimcastfdb.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sail2mc.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiipmc.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saineighbor.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sairoute.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saimpls.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sainat.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saisrv6.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentalbmtor.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saipolicer.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiport.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiqosmap.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiqueue.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sairoute.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sairouterinterface.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sairpfgroup.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saisamplepacket.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saischedulergroup.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saischeduler.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saisrv6.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saistatus.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saistp.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiswitch.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saisystemport.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saitam.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saitunnel.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saitypes.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiudf.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saivirtualrouter.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saivlan.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiwred.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saidtel.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saibfd.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/sainat.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiisolationgroup.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saidebugcounter.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saimymac.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/sai/saiversion.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/meta/saimetadatautils.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/meta/saimetadatatypes.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/meta/saimetadata.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/experimental/saiextensions.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/experimental/saitypesextensions.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/experimental/saiswitchextensions.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentalbmtor.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/meta/saimetadatalogger.h:
+/home/jenkins/agent/workspace/sai_ib_build_staging_ngci_test/sai_interface/mlnx_sai/src/meta/saiserialize.h:

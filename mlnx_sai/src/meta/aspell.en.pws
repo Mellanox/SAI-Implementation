@@ -7,6 +7,7 @@ an
 apache
 api
 APIs
+Aport
 Args
 attr
 attrid
@@ -14,6 +15,7 @@ attrs
 attrvalue
 attrvaluetype
 AUTONEG
+ber
 bool
 boolean
 callee
@@ -21,8 +23,6 @@ Callee
 chardata
 checksum
 childs
-codeword
-codewords
 const
 couldn
 cpp
@@ -56,6 +56,7 @@ Failover
 FC
 fdb
 ffff
+FNM
 FPGAs
 fprintf
 functionalities
@@ -96,6 +97,7 @@ lossless
 lu
 MACsec
 maincursor
+maf
 Marvell
 Mbps
 mcast
@@ -121,6 +123,7 @@ netlink
 nexthop
 nexthopgroup
 NPUs
+NVLink
 objlist
 offsetof
 oid
@@ -207,4 +210,9 @@ watchlist
 wildcard
 Wildcard
 www
+Encaps
+Args
 xconnect
+uA
+uN
+allowrepeat

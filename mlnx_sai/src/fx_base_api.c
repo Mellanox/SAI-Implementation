@@ -62,12 +62,12 @@ limitations under the License.
 
 #include <complib/sx_log.h>
 
-#include <mlnx_sai.h>
-
 /////////////////////////////
 // defines
 /////////////////////////////
 typedef u_int8_t uint8_t;
+
+#define FX_ACL_FLOW_COUNTER
 
 const uint32_t ENDIAN_INT = 1;
 #define is_bigendian() ( (*(char*)&ENDIAN_INT ) == 0 )
@@ -292,43 +292,6 @@ sx_status_t fx_table_entry_const_set(fx_handle_t handle, struct acl_table *table
 //    return SX_STATUS_SUCCESS;
 //}
 
-static bool        fx_sdk_opened_in_fx = false;
-
-sx_status_t fx_close_sdk(fx_handle_t handle)
-{
-    sx_status_t sx_status;
-
-    if (fx_sdk_opened_in_fx) {
-        sx_status = sx_api_close(&handle->sdk_handle);
-        if (SX_ERR(sx_status)) {
-           FX_LOG(SX_LOG_ERROR, "SDK API sx_api_close failed: [%s]\n", SX_STATUS_MSG(sx_status));
-           return sx_status;
-        }
-    }
-
-    fx_sdk_opened_in_fx = false;
-
-    return SX_STATUS_SUCCESS;
-}
-
-sx_status_t fx_open_sdk(fx_handle_t *handle, const sx_api_handle_t *sx_handle)
-{
-    sx_status_t sx_status = SX_STATUS_SUCCESS;
-
-    if (!sx_handle) {
-        sx_status = sx_api_open(NULL, &(*handle)->sdk_handle);
-        if (SX_ERR(sx_status)) {
-            return sx_status;
-        }
-        fx_sdk_opened_in_fx = true;
-    } else {
-        (*handle)->sdk_handle = *sx_handle;
-        fx_sdk_opened_in_fx = false;
-    }
-
-    return sx_status;
-}
-
 /* Open spectrum SDK */
 sx_status_t
 fx_init(fx_handle_t *handle, const sx_api_handle_t *sx_handle)
@@ -343,10 +306,14 @@ fx_init(fx_handle_t *handle, const sx_api_handle_t *sx_handle)
     (*handle)->config_fd = -1;
 
     FX_LOG(SX_LOG_NOTICE, "Opening SDK...\n");
-    rc = fx_open_sdk(handle, sx_handle);
-    if (rc) {
-        FX_LOG(SX_LOG_ERROR, "SDK API sx_api_open failed: [%s]\n", SX_STATUS_MSG(rc));
-        return rc;
+    if (!sx_handle) {
+        rc = sx_api_open(NULL, &(*handle)->sdk_handle);
+        if (rc) {
+            FX_LOG(SX_LOG_ERROR, "SDK API sx_api_open failed: [%s]\n", SX_STATUS_MSG(rc));
+            return rc;
+        }
+    } else {
+        (*handle)->sdk_handle = *sx_handle;
     }
     rc = fx_actions_init(*handle);
     if (rc) {
@@ -378,11 +345,10 @@ sx_status_t fx_deinit(fx_handle_t handle) {
     if (rc) {
       FX_LOG(SX_LOG_ERROR, "FX DEINIT actions failed: [%s]\n", SX_STATUS_MSG(rc));
     }
-    rc = fx_close_sdk(handle);
-    if (SX_ERR(rc)) {
-        FX_LOG(SX_LOG_ERROR, "SDK API sx_api_close failed: [%s]\n", SX_STATUS_MSG(rc));
+    //rc = sx_api_close(&handle->sdk_handle);
+    if (rc) {
+       FX_LOG(SX_LOG_ERROR, "SDK API sx_api_close failed: [%s]\n", SX_STATUS_MSG(rc));
     }
-
     memset(handle, 0, sizeof(fx_handle));
     handle->config_fd = -1;
     free(handle);
@@ -563,100 +529,35 @@ fx_get_bindable_port_list(fx_handle_t handle, sx_port_log_id_t *if_list, uint32_
   return SX_STATUS_SUCCESS;
 }
 
-/*
- * Parameters:
- * if_list - [Out] array of RIFs
- * if_list_cnt - [In] the size of the input array
- *               [Out] return actual number of RIFs
- *
- * Return:
- * sx_status             - if SDK fails
- * SX_STATUS_PARAM_ERROR - if the array size is not sufficient
- */
-sx_status_t fx_get_bindable_rif_list(_In_ fx_handle_t             handle,
-                                     _Out_ sx_router_interface_t *if_list,
-                                     _Inout_ uint32_t            *if_list_cnt)
+sx_status_t fx_get_bindable_rif_list(fx_handle_t handle, sx_router_interface_t *if_list, uint32_t *if_list_cnt)
 {
-    sx_status_t            sx_status;
-    uint32_t               ret_count = 0;
-    const uint32_t         RIFS_CHUNK = 100;
-    uint32_t               number_of_rifs = 0;
-    sx_router_interface_t *list_pointer = if_list;
-
-    if (!if_list || !if_list_cnt) {
-        FX_LOG(SX_LOG_ERROR, "Parameter error.\n");
-        return SX_STATUS_PARAM_ERROR;
+  bool print_rifs = (*if_list_cnt != 0);
+  sx_status_t rc = sx_api_router_interface_iter_get(handle->sdk_handle, SX_ACCESS_CMD_GET, 0, 0, 0, if_list_cnt);
+  if (rc != SX_STATUS_SUCCESS)
+  {
+      FX_LOG(SX_LOG_ERROR, "SDK API sx_api_router_interface_iter_get failed: [%s]\n", SX_STATUS_MSG(rc));
+      return rc;
+  }
+  rc = sx_api_router_interface_iter_get(handle->sdk_handle, SX_ACCESS_CMD_GET_FIRST, 0, 0, if_list, if_list_cnt);
+  if (rc != SX_STATUS_SUCCESS)
+  {
+      FX_LOG(SX_LOG_ERROR, "SDK API sx_api_router_interface_iter_get failed: [%s]\n", SX_STATUS_MSG(rc));
+      return rc;
+  }
+  if (*if_list_cnt == 0)
+  {
+      FX_LOG(SX_LOG_WARNING, "No RIF configured in switch.\n");
+      return SX_STATUS_SUCCESS;
+  }
+  if (print_rifs) {
+    FX_LOG(SX_LOG_INFO, "Bindable rifs:\n");
+    for (uint32_t i = 0; i < *(if_list_cnt); i++)
+    {
+      FX_LOG(SX_LOG_INFO, " 0x%x\n", if_list[i]);
     }
-
-    sx_status = sx_api_router_interface_iter_get(handle->sdk_handle,
-                                                 SX_ACCESS_CMD_GET,
-                                                 0,
-                                                 0,
-                                                 0,
-                                                 &number_of_rifs);
-    if (SX_ERR(sx_status)) {
-        FX_LOG(SX_LOG_ERROR, "Get the list of RIFs failed: (sx_api_router_interface_iter_get GET - [%s]).\n",
-               SX_STATUS_MSG(sx_status));
-        return sx_status;
-    }
-
-    if (number_of_rifs > *if_list_cnt) {
-        FX_LOG(SX_LOG_ERROR, "Not sufficient buffer size [%u], required [%u].\n", *if_list_cnt, number_of_rifs);
-        return SX_STATUS_PARAM_ERROR;
-    }
-
-    uint32_t space_left = *if_list_cnt;
-    *if_list_cnt = 0;
-
-    ret_count = (RIFS_CHUNK < space_left) ? RIFS_CHUNK : space_left;
-    sx_status = sx_api_router_interface_iter_get(handle->sdk_handle,
-                                                 SX_ACCESS_CMD_GET_FIRST,
-                                                 0,
-                                                 0,
-                                                 list_pointer,
-                                                 &ret_count);
-    if (SX_ERR(sx_status)) {
-        FX_LOG(SX_LOG_ERROR, "Get the list of RIFs failed: (sx_api_router_interface_iter_get GET_FIRST - [%s]).\n",
-               SX_STATUS_MSG(sx_status));
-        return sx_status;
-    }
-    space_left -= ret_count;
-    *if_list_cnt += ret_count;
-    list_pointer += ret_count;
-
-    while (ret_count) {
-        ret_count = (RIFS_CHUNK < space_left) ? RIFS_CHUNK : space_left;
-        sx_status = sx_api_router_interface_iter_get(handle->sdk_handle,
-                                                     SX_ACCESS_CMD_GETNEXT,
-                                                     list_pointer - 1,
-                                                     0,
-                                                     list_pointer,
-                                                     &ret_count);
-        if (SX_ERR(sx_status)) {
-            FX_LOG(SX_LOG_ERROR, "Get the list of RIFs failed: (sx_api_router_interface_iter_get GETNEXT - [%s]).\n",
-                   SX_STATUS_MSG(sx_status));
-            return sx_status;
-        }
-        space_left -= ret_count;
-        *if_list_cnt += ret_count;
-        list_pointer += ret_count;
-    }
-
-    if (*if_list_cnt == 0) {
-        FX_LOG(SX_LOG_INFO, "No RIF configured in switch.\n");
-        return SX_STATUS_SUCCESS;
-    }
-
-    if (*if_list_cnt) {
-        FX_LOG(SX_LOG_INFO, "Bindable rifs [%u]:\n", *if_list_cnt);
-        for (uint32_t ii = 0; ii < *(if_list_cnt); ii++) {
-            FX_LOG(SX_LOG_INFO, " 0x%x\n", if_list[ii]);
-        }
-    }
-
-    FX_LOG(SX_LOG_INFO,".\nfx_get_bindable_rif_list success, number of rifs: %d\n", *if_list_cnt);
-
-    return SX_STATUS_SUCCESS;
+  }
+  FX_LOG(SX_LOG_INFO,".\nfx_get_rif_if_list success, number of rifs: %d\n", *if_list_cnt);
+  return SX_STATUS_SUCCESS;
 }
 
 //binding:
@@ -1895,13 +1796,14 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
             rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_NVE_TUNNEL_ENCAP,
                 .fields.action_nve_tunnel_encap.tunnel_id = *(sx_tunnel_id_t*)(params.params[1].data),
-                .fields.action_nve_tunnel_encap.underlay_dip = *(sx_ip_addr_t*)(params.params[2].data)
+                .fields.action_nve_tunnel_encap.underlay_dip.addr.ipv4.s_addr = *(in_addr_t*)(params.params[2].data),
+                .fields.action_nve_tunnel_encap.underlay_dip.version = (sx_ip_version_t) SX_IP_VERSION_IPV4
 			};
 			{
             memcpy(&rule->action_list_p[1].fields.action_nve_tunnel_encap.tunnel_id, params.params[1].data, params.params[1].len);
 			}
 			{
-            memcpy(&rule->action_list_p[1].fields.action_nve_tunnel_encap.underlay_dip, params.params[2].data, params.params[2].len);
+            memcpy(&rule->action_list_p[1].fields.action_nve_tunnel_encap.underlay_dip.addr.ipv4.s_addr, params.params[2].data, params.params[2].len);
 			}
 #ifdef FX_ACL_FLOW_COUNTER
 			// hit_counter()
@@ -2379,23 +2281,7 @@ void fill_custom_bytes_control_out_rif_table_meta_tunnel(struct fx_custom_params
 }
 
 sx_status_t create_control_out_rif_table_meta_tunnel(fx_handle_t handle, sx_acl_id_t* pipe_id_list, int pipe_ind  ) {
-  sx_status_t sx_status;
-  sx_chip_types_t sx_chip_type = SX_CHIP_TYPE_UNKNOWN;
-  sx_status = get_chip_type(&sx_chip_type);
-  if (sx_status != SX_STATUS_SUCCESS) {
-      SX_LOG_ERR("Failed to get chip type.\n");
-      return sx_status;
-  }
-  uint32_t size;
-  switch(sx_chip_type) {
-  case SX_CHIP_TYPE_SPECTRUM:
-  case SX_CHIP_TYPE_SPECTRUM_A1:
-      size = 4000;
-    break;
-  default:
-      size = 40000;
-      break;
-  }
+  const uint32_t size = 4032;
   const uint32_t key_count = 1;
   const int table_index = 2; // 2 is replaced by macro
   struct acl_table *table = &handle->acl_tables[table_index];
@@ -3104,19 +2990,10 @@ sx_status_t fx_default_handle_get(fx_handle_t **handle, const sx_api_handle_t *s
     sx_port_log_id_t      port_list[PORT_NUM];
     sx_router_interface_t rif_list[RIF_NUM];
     uint32_t              num_of_ports = 0;
-    uint32_t              num_of_rifs = RIF_NUM;
+    uint32_t              num_of_rifs = 0;
 
     if (fx_default_initialized || !do_init)
     {
-        /* Switch connect case */
-        if (sx_handle && fx_default_handle && (fx_default_handle->sdk_handle != *sx_handle)) {
-            FX_LOG(SX_LOG_NOTICE, "Reopen FX SDK handle [0x%lX -> 0x%lX].\n", fx_default_handle->sdk_handle, *sx_handle);
-            sx_status = fx_open_sdk(&fx_default_handle, sx_handle);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to open new SDK - %s\n", SX_STATUS_MSG(sx_status));
-                goto out;
-            }
-        }
         *handle = &fx_default_handle;
         sx_status = SX_STATUS_SUCCESS;
         goto out;
@@ -3157,11 +3034,11 @@ out:
 }
 
 sx_status_t fx_default_handle_free() {
-    sx_status_t           sx_status;
-    sx_port_log_id_t      port_list[PORT_NUM];
+    sx_status_t  sx_status;
+    sx_port_log_id_t port_list[PORT_NUM];
     sx_router_interface_t rif_list[RIF_NUM];
-    uint32_t              num_of_ports = 0;
-    uint32_t              num_of_rifs = RIF_NUM;
+    uint32_t num_of_ports = 0;
+    uint32_t num_of_rifs = 0;
 
     if (!fx_default_initialized)
     {
@@ -3186,6 +3063,13 @@ sx_status_t fx_default_handle_free() {
     sx_status = fx_get_bindable_rif_list(fx_default_handle, rif_list, &num_of_rifs);
     if (sx_status)
     {
+        FX_LOG(SX_LOG_ERROR, "Failed to get bindable rif list size\n");
+        goto out;
+    }
+
+    sx_status = fx_get_bindable_rif_list(fx_default_handle, rif_list, &num_of_rifs);
+    if (sx_status)
+    {
         FX_LOG(SX_LOG_ERROR, "Failed to get bindable rif list\n");
         goto out;
     }
@@ -3193,7 +3077,7 @@ sx_status_t fx_default_handle_free() {
     sx_status = fx_pipe_destroy(fx_default_handle, FX_CONTROL_OUT_RIF, (void *)rif_list, num_of_rifs);
     if (sx_status) {
         FX_LOG(SX_LOG_ERROR, "Error - sx_status:%d\n", sx_status);
-        goto out;
+        return sx_status;
     }
     fx_extern_deinit(fx_default_handle);
     fx_deinit(fx_default_handle);

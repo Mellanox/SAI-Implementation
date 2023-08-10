@@ -452,19 +452,10 @@ typedef enum _sai_attr_value_type_t
     SAI_ATTR_VALUE_TYPE_AUTH_KEY,
 
     /**
-     * @brief Attribute value is a latch's status.
+     * @brief Attribute value is aggregated port configuration
      */
-    SAI_ATTR_VALUE_TYPE_LATCH_STATUS,
+    SAI_ATTR_VALUE_TYPE_AGGREGATED_PORT_DATA,
 
-    /**
-     * @brief Attribute value is a list of latch status for all lanes in a port.
-     */
-    SAI_ATTR_VALUE_TYPE_PORT_LANE_LATCH_STATUS_LIST,
-
-    /**
-     * @brief Attribute value is a json.
-     */
-    SAI_ATTR_VALUE_TYPE_JSON,
 } sai_attr_value_type_t;
 
 /**

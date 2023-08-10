@@ -129,48 +129,6 @@ const mlnx_availability_get_fn mlnx_availability_get_fns[SAI_OBJECT_TYPE_MAX] = 
     [SAI_OBJECT_TYPE_DEBUG_COUNTER] = mlnx_debug_counter_availability_get,
 };
 
-sai_status_t mlnx_sai_bulk_queue_stats_get(_In_ sai_object_id_t         switch_id,
-                                           _In_ uint32_t                object_count,
-                                           _In_ const sai_object_key_t *object_key,
-                                           _In_ uint32_t                number_of_counters,
-                                           _In_ const sai_stat_id_t    *counter_ids,
-                                           _In_ sx_access_cmd_t         cmd,
-                                           _Inout_ sai_status_t        *object_statuses,
-                                           _Out_ uint64_t              *counters);
-sai_status_t mlnx_sai_bulk_ingress_priority_group_stats_get(_In_ sai_object_id_t         switch_id,
-                                                            _In_ uint32_t                object_count,
-                                                            _In_ const sai_object_key_t *object_key,
-                                                            _In_ uint32_t                number_of_counters,
-                                                            _In_ const sai_stat_id_t    *counter_ids,
-                                                            _In_ sx_access_cmd_t         cmd,
-                                                            _Inout_ sai_status_t        *object_statuses,
-                                                            _Out_ uint64_t              *counters);
-
-const mlnx_bulk_object_get_stats_fn mlnx_bulk_object_get_stats_fns[SAI_OBJECT_TYPE_MAX] = {
-    [SAI_OBJECT_TYPE_QUEUE] = mlnx_sai_bulk_queue_stats_get,
-    [SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP] = mlnx_sai_bulk_ingress_priority_group_stats_get,
-};
-
-sai_status_t mlnx_sai_bulk_queue_stats_clear(_In_ sai_object_id_t         switch_id,
-                                             _In_ uint32_t                object_count,
-                                             _In_ const sai_object_key_t *object_key,
-                                             _In_ uint32_t                number_of_counters,
-                                             _In_ const sai_stat_id_t    *counter_ids,
-                                             _In_ sx_access_cmd_t         cmd,
-                                             _Inout_ sai_status_t        *object_statuses);
-sai_status_t mlnx_sai_bulk_ingress_priority_group_stats_clear(_In_ sai_object_id_t         switch_id,
-                                                              _In_ uint32_t                object_count,
-                                                              _In_ const sai_object_key_t *object_key,
-                                                              _In_ uint32_t                number_of_counters,
-                                                              _In_ const sai_stat_id_t    *counter_ids,
-                                                              _In_ sx_access_cmd_t         cmd,
-                                                              _Inout_ sai_status_t        *object_statuses);
-
-const mlnx_bulk_object_clear_stats_fn mlnx_bulk_object_clear_stats_fns[SAI_OBJECT_TYPE_MAX] = {
-    [SAI_OBJECT_TYPE_QUEUE] = mlnx_sai_bulk_queue_stats_clear,
-    [SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP] = mlnx_sai_bulk_ingress_priority_group_stats_clear,
-};
-
 sai_status_t mlnx_object_eth_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;

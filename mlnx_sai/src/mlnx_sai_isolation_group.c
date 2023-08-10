@@ -125,6 +125,38 @@ static sai_status_t mlnx_isolation_group_db_get_by_id(_In_ sai_object_id_t      
     return mlnx_isolation_group_db_get_by_idx(mlnx_oid.id.isolation_group_db_idx, isolation_group_db_entry);
 }
 
+static void isolation_group_key_to_str(_In_ sai_object_id_t isolation_group_id, _Out_ char *key_str)
+{
+    mlnx_object_id_t mlnx_oid;
+    sai_status_t     status;
+    const char      *group_name = NULL;
+
+    memset(&mlnx_oid, 0, sizeof(mlnx_oid));
+
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_ISOLATION_GROUP, isolation_group_id, &mlnx_oid);
+    if (!SAI_ERR(status)) {
+        switch (mlnx_oid.field.sub_type) {
+        case SAI_ISOLATION_GROUP_TYPE_PORT:
+            group_name = "port";
+            break;
+
+        case SAI_ISOLATION_GROUP_TYPE_BRIDGE_PORT:
+            group_name = "bridge port";
+            break;
+
+        default:
+            status = SAI_STATUS_FAILURE;
+        }
+    }
+
+    if (SAI_ERR(status)) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid isolation group");
+    } else {
+        snprintf(key_str, MAX_KEY_STR_LEN, "Isolation group id %u, type ='%s'", mlnx_oid.id.isolation_group_db_idx,
+                 group_name);
+    }
+}
+
 /* needs sai_db read lock */
 static int32_t mlnx_find_acl_entry_isolation_group_db(sai_object_id_t          acl_entry,
                                                       mlnx_isolation_group_t **isolation_group_entry)
@@ -203,26 +235,8 @@ static const sai_vendor_attribute_entry_t isolation_group_vendor_attribs[] = {
 static mlnx_attr_enum_info_t              isolation_group_enum_info[] = {
     [SAI_ISOLATION_GROUP_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL()
 };
-static size_t isolation_group_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
-{
-    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
-    const char      *group_name = NULL;
-
-    if (mlnx_oid.field.sub_type == SAI_ISOLATION_GROUP_TYPE_PORT) {
-        group_name = "PORT";
-    } else if (mlnx_oid.field.sub_type == SAI_ISOLATION_GROUP_TYPE_BRIDGE_PORT) {
-        group_name = "BRIDGE_PORT";
-    } else {
-        group_name = "<invalid>";
-    }
-
-    return snprintf(str, max_len, "[isolation_groups[%u], type:%s]",
-                    mlnx_oid.id.isolation_group_db_idx,
-                    group_name);
-}
-const mlnx_obj_type_attrs_info_t mlnx_isolation_group_obj_type_info =
-{ isolation_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(isolation_group_enum_info), OBJ_STAT_CAP_INFO_EMPTY(),
-  isolation_group_info_print};
+const mlnx_obj_type_attrs_info_t          mlnx_isolation_group_obj_type_info =
+{ isolation_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(isolation_group_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 
 static sai_status_t mlnx_isolation_group_type_get(_In_ const sai_object_key_t   *key,
                                                   _Inout_ sai_attribute_value_t *value,
@@ -314,6 +328,8 @@ static sai_status_t mlnx_create_isolation_group(_Out_ sai_object_id_t      *isol
                                                 _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
+    char                         list_str[MAX_LIST_VALUE_STR_LEN];
+    char                         key_str[MAX_KEY_STR_LEN];
     const sai_attribute_value_t *attr;
     uint32_t                     attr_idx;
     mlnx_isolation_group_t      *isolation_group_entry = NULL;
@@ -321,11 +337,20 @@ static sai_status_t mlnx_create_isolation_group(_Out_ sai_object_id_t      *isol
 
     SX_LOG_ENTER();
 
-    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_ISOLATION_GROUP, isolation_group_id);
+    if (NULL == isolation_group_id) {
+        SX_LOG_ERR("NULL isolation group id param\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_ISOLATION_GROUP, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create isolation group, %s\n", list_str);
+
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_ISOLATION_GROUP,
+                                    isolation_group_vendor_attribs, SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
-    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_ISOLATION_GROUP);
 
     sai_db_write_lock();
     status = mlnx_validate_port_isolation_api(PORT_ISOLATION_API_ISOLATION_GROUP);
@@ -350,8 +375,8 @@ static sai_status_t mlnx_create_isolation_group(_Out_ sai_object_id_t      *isol
         goto out;
     }
 
-    MLNX_LOG_OID_CREATED(*isolation_group_id);
-
+    isolation_group_key_to_str(*isolation_group_id, key_str);
+    SX_LOG_NTC("Created isolation group: id - %s\n", key_str);
 out:
     /*rollback*/
     if (SAI_ERR(status)) {
@@ -368,11 +393,13 @@ out:
 static sai_status_t mlnx_remove_isolation_group(_In_ sai_object_id_t isolation_group_id)
 {
     mlnx_isolation_group_t *isolation_group_entry = NULL;
+    char                    key_str[MAX_KEY_STR_LEN];
     sai_status_t            status;
 
     SX_LOG_ENTER();
 
-    MLNX_LOG_OID_REMOVE(isolation_group_id);
+    isolation_group_key_to_str(isolation_group_id, key_str);
+    SX_LOG_NTC("Remove isolation group: id - %s\n", key_str);
 
     sai_db_write_lock();
     status = mlnx_isolation_group_db_get_by_id(isolation_group_id, &isolation_group_entry);
@@ -383,7 +410,7 @@ static sai_status_t mlnx_remove_isolation_group(_In_ sai_object_id_t isolation_g
 
     if ((isolation_group_entry->members_count != 0) || (isolation_group_entry->subscribed_acl_count != 0) ||
         (isolation_group_entry->subscribed_ports_count != 0)) {
-        SX_LOG_ERR("Failed to remove isolation group: isolation group in use. Id - 0x%lX\n", isolation_group_id);
+        SX_LOG_ERR("Failed to remove isolation group: isolation group in use. Id - %s\n", key_str);
         SX_LOG_ERR("Isolation group: "
                    "members count - %u, subscribed acl entry count - %u, subscribed ports count - %u\n",
                    isolation_group_entry->members_count, isolation_group_entry->subscribed_acl_count,
@@ -408,8 +435,12 @@ static sai_status_t mlnx_set_isolation_group_attribute(_In_ sai_object_id_t     
                                                        _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = isolation_group_id};
+    char                   key_str[MAX_KEY_STR_LEN];
 
-    return sai_set_attribute(&key, SAI_OBJECT_TYPE_ISOLATION_GROUP, attr);
+    SX_LOG_ENTER();
+
+    isolation_group_key_to_str(isolation_group_id, key_str);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_ISOLATION_GROUP, isolation_group_vendor_attribs, attr);
 }
 
 static sai_status_t mlnx_get_isolation_group_attribute(_In_ sai_object_id_t     isolation_group_id,
@@ -417,8 +448,13 @@ static sai_status_t mlnx_get_isolation_group_attribute(_In_ sai_object_id_t     
                                                        _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = isolation_group_id };
+    char                   key_str[MAX_KEY_STR_LEN];
 
-    return sai_get_attributes(&key, SAI_OBJECT_TYPE_ISOLATION_GROUP, attr_count, attr_list);
+    SX_LOG_ENTER();
+
+    isolation_group_key_to_str(isolation_group_id, key_str);
+    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_ISOLATION_GROUP, isolation_group_vendor_attribs,
+                              attr_count, attr_list);
 }
 
 static sai_status_t mlnx_isolation_group_member_isolation_object_get(_In_ const sai_object_key_t   *key,
@@ -448,18 +484,8 @@ static const sai_vendor_attribute_entry_t isolation_group_member_vendor_attribs[
       NULL, NULL,
       NULL, NULL },
 };
-static size_t isolation_group_member_info_print(_In_ const sai_object_key_t *key,
-                                                _Out_ char                  *str,
-                                                _In_ size_t                  max_len)
-{
-    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
-
-    return snprintf(str, max_len, "[isolation_groups[%u], log_port:0x%X]",
-                    mlnx_oid.ext.isolation_group_member.isolation_group_db_idx, mlnx_oid.id.log_port_id);
-}
-const mlnx_obj_type_attrs_info_t mlnx_isolation_group_member_obj_type_info =
-{ isolation_group_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY(),
-  isolation_group_member_info_print};
+const mlnx_obj_type_attrs_info_t          mlnx_isolation_group_member_obj_type_info =
+{ isolation_group_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY() };
 
 static sai_status_t mlnx_isolation_group_update_subscribed_acl(mlnx_isolation_group_t *isolation_group);
 
@@ -803,26 +829,53 @@ sai_status_t mlnx_create_isolation_group_member_oid(sai_object_id_t *object_id,
     return status;
 }
 
+static void isolation_group_member_key_to_str(_In_ sai_object_id_t isolation_group_member_id, _Out_ char *key_str)
+{
+    mlnx_object_id_t mlnx_oid;
+    sai_status_t     status;
+
+    memset(&mlnx_oid, 0, sizeof(mlnx_oid));
+
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER, isolation_group_member_id, &mlnx_oid);
+    if (SAI_ERR(status)) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid isolation group member");
+    } else {
+        snprintf(key_str,
+                 MAX_KEY_STR_LEN,
+                 "Isolation group member id: isolation group idx - %u, logical port id- %#0x",
+                 mlnx_oid.ext.isolation_group_member.isolation_group_db_idx,
+                 mlnx_oid.id.log_port_id);
+    }
+}
+
 static sai_status_t mlnx_create_isolation_group_member(_Out_ sai_object_id_t      *isolation_group_member_id,
                                                        _In_ sai_object_id_t        switch_id,
                                                        _In_ uint32_t               attr_count,
                                                        _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
+    char                         list_str[MAX_LIST_VALUE_STR_LEN];
+    char                         key_str[MAX_KEY_STR_LEN];
     const sai_attribute_value_t *group_attr, *member_object_attr;
     uint32_t                     group_attr_idx, member_object_attr_idx;
     sx_port_log_id_t             log_port;
 
     SX_LOG_ENTER();
 
-    status = check_attribs_on_create(attr_count,
-                                     attr_list,
-                                     SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER,
-                                     isolation_group_member_id);
+    if (NULL == isolation_group_member_id) {
+        SX_LOG_ERR("NULL isolation group member id param\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER, MAX_LIST_VALUE_STR_LEN,
+                         list_str);
+    SX_LOG_NTC("Create isolation group member, %s\n", list_str);
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER,
+                                    isolation_group_member_vendor_attribs, SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
-    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER);
 
     status = find_attrib_in_list(attr_count,
                                  attr_list,
@@ -855,7 +908,8 @@ static sai_status_t mlnx_create_isolation_group_member(_Out_ sai_object_id_t    
         goto out;
     }
 
-    MLNX_LOG_OID_CREATED(*isolation_group_member_id);
+    isolation_group_member_key_to_str(*isolation_group_member_id, key_str);
+    SX_LOG_NTC("Created isolation group member: id - %s\n", key_str);
 
 out:
 
@@ -967,11 +1021,13 @@ static sai_status_t mlnx_remove_isolation_group_member(_In_ sai_object_id_t isol
     mlnx_isolation_group_t *isolation_group_entry;
     mlnx_port_config_t     *port;
     sx_port_log_id_t        log_port;
+    char                    key_str[MAX_KEY_STR_LEN];
     int32_t                 port_position;
 
     SX_LOG_ENTER();
 
-    MLNX_LOG_OID_REMOVE(isolation_group_member_id);
+    isolation_group_member_key_to_str(isolation_group_member_id, key_str);
+    SX_LOG_NTC("Remove isolation group member: id - %s\n", key_str);
 
     status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER, isolation_group_member_id, &mlnx_oid);
     if (SAI_ERR(status)) {
@@ -1043,8 +1099,13 @@ static sai_status_t mlnx_set_isolation_group_member_attribute(_In_ sai_object_id
                                                               _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = isolation_group_member_id};
+    char                   key_str[MAX_KEY_STR_LEN];
 
-    return sai_set_attribute(&key, SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER, attr);
+    SX_LOG_ENTER();
+
+    isolation_group_member_key_to_str(isolation_group_member_id, key_str);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER,
+                             isolation_group_member_vendor_attribs, attr);
 }
 
 sai_status_t mlnx_get_isolation_group_member_attribute(_In_ sai_object_id_t     isolation_group_member_id,
@@ -1052,8 +1113,13 @@ sai_status_t mlnx_get_isolation_group_member_attribute(_In_ sai_object_id_t     
                                                        _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = isolation_group_member_id };
+    char                   key_str[MAX_KEY_STR_LEN];
 
-    return sai_get_attributes(&key, SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER, attr_count, attr_list);
+    SX_LOG_ENTER();
+
+    isolation_group_member_key_to_str(isolation_group_member_id, key_str);
+    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER,
+                              isolation_group_member_vendor_attribs, attr_count, attr_list);
 }
 
 /* needs sai_db write lock

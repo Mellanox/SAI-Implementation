@@ -67,14 +67,8 @@ static const mlnx_attr_enum_info_t        qos_map_enum_info[] = {
         SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP,
         SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE),
 };
-static size_t qos_map_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
-{
-    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
-
-    return snprintf(str, max_len, "[qos_maps_db[%u]]", mlnx_oid.id.u32);
-}
-const mlnx_obj_type_attrs_info_t mlnx_qos_map_obj_type_info =
-{ qos_map_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(qos_map_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), qos_map_info_print};
+const mlnx_obj_type_attrs_info_t          mlnx_qos_map_obj_type_info =
+{ qos_map_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(qos_map_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 /* db read lock is needed */
 static mlnx_qos_map_t * db_qos_map_get(uint32_t id)
 {
@@ -524,6 +518,22 @@ static sai_status_t db_qos_map_fill_params(mlnx_qos_map_t *qos_map, const sai_qo
     return status;
 }
 
+static void qos_map_key_to_str(_In_ sai_object_id_t qos_map_id, _Out_ char *key_str)
+{
+    sai_status_t sai_status;
+    uint32_t     id;
+
+    sai_status = mlnx_object_to_type(qos_map_id, SAI_OBJECT_TYPE_QOS_MAP,
+                                     &id, NULL);
+
+    if (sai_status != SAI_STATUS_SUCCESS) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid qos map id");
+    } else {
+        snprintf(key_str, MAX_KEY_STR_LEN, "qos map id %u", id);
+    }
+}
+
+
 /** Qos Map type [sai_qos_map_type_t] (MANDATORY_ON_CREATE|CREATE_ONLY) */
 static sai_status_t mlnx_qos_map_type_get(_In_ const sai_object_key_t   *key,
                                           _Inout_ sai_attribute_value_t *value,
@@ -733,6 +743,7 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
 {
     const sai_attribute_value_t *type, *list = NULL;
     char                         value_str[MAX_VALUE_STR_LEN];
+    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     type_index, list_index;
     mlnx_qos_map_t              *qos_map;
     sai_status_t                 status;
@@ -742,11 +753,22 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
 
     SX_LOG_ENTER();
 
-    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_QOS_MAP, qos_map_id);
-    if (SAI_ERR(status)) {
+    if (NULL == qos_map_id) {
+        SX_LOG_ERR("NULL qos map id param\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_QOS_MAP,
+                                    qos_map_vendor_attribs,
+                                    SAI_COMMON_API_CREATE);
+
+    if (status != SAI_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
-    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_QOS_MAP);
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_QOS_MAP, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create qos map, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_QOS_MAP_ATTR_TYPE,
                                  &type, &type_index);
@@ -756,8 +778,8 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
     sai_db_write_lock();
 
     status = db_qos_map_alloc(&new_id);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to allocate QoS map\n");
+    if (status != SAI_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed to alloc qos map\n");
         goto out;
     }
 
@@ -768,15 +790,15 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
                                  &list, &list_index);
 
     status = db_qos_map_fill_params(qos_map, status == SAI_STATUS_SUCCESS ? &list->qosmap : NULL);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to fill new QoS map params\n");
+    if (status != SAI_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed to fill new qos map params\n");
         db_qos_map_free(new_id);
         goto out;
     }
 
     status = mlnx_create_object(SAI_OBJECT_TYPE_QOS_MAP, new_id, NULL, qos_map_id);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to create mlnx object id\n");
+    if (status != SAI_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed create mlnx object id\n");
         db_qos_map_free(new_id);
         goto out;
     }
@@ -785,9 +807,10 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
         sai_qos_map_to_str(&list->qosmap, type->u32, MAX_VALUE_STR_LEN, value_str);
     }
 
-    SX_LOG_NTC("Created QoS map id 0x%" PRIx64 ", [DB:%u] %s\n", *qos_map_id, new_id, value_str);
+    SX_LOG_NTC("Created qos map id %" PRIx64 ", %s\n", *qos_map_id, value_str);
 
 out:
+    sai_db_sync();
     sai_db_unlock();
     SX_LOG_EXIT();
     return status;
@@ -813,41 +836,43 @@ static sai_status_t mlnx_remove_qos_map(_In_ sai_object_id_t qos_map_id)
 
     status = mlnx_object_to_type(qos_map_id, SAI_OBJECT_TYPE_QOS_MAP, &del_id, NULL);
     if (status != SAI_STATUS_SUCCESS) {
-        SX_LOG_ERR("Invalid QoS map OID [0x%lX]\n", qos_map_id);
+        SX_LOG_ERR("Invalid qos map id\n");
         return status;
     }
 
     sai_db_write_lock();
 
     status = mlnx_qos_map_get_by_id(qos_map_id, &qos_map);
-    if (SAI_ERR(status)) {
+    if (status != SAI_STATUS_SUCCESS) {
         goto out;
     }
 
     if (g_sai_db_ptr->switch_qos_maps[qos_map->type]) {
         status = SAI_STATUS_OBJECT_IN_USE;
-        SX_LOG_ERR("QoS map [DB:%u] is still in use by switch\n", del_id);
+        SX_LOG_ERR("QoS map is already in use by switch\n");
         goto out;
     }
 
     mlnx_port_foreach(port, port_idx) {
         if (port->qos_maps[qos_map->type] == del_id) {
             status = SAI_STATUS_OBJECT_IN_USE;
-            SX_LOG_ERR("QoS map [DB:%u] is still in use by port %" PRIx64 "\n", del_id, port->saiport);
+            SX_LOG_ERR("QoS map is already in use by port %" PRIx64 "\n", port->saiport);
             goto out;
         }
     }
 
     status = db_qos_map_free(del_id);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to remove QoS map [DB:%u]\n", del_id);
+    if (status != SAI_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed to remove qos map id=%u\n", del_id);
+    } else {
+        sai_db_sync();
     }
 
 out:
     sai_db_unlock();
 
-    if (SAI_OK(status)) {
-        SX_LOG_NTC("Removed QoS map OID=%" PRIx64 "\n", qos_map_id);
+    if (status == SAI_STATUS_SUCCESS) {
+        SX_LOG_NTC("Removed QoS map id=%" PRIx64 "\n", qos_map_id);
     }
 
     SX_LOG_EXIT();
@@ -866,8 +891,12 @@ out:
 static sai_status_t mlnx_set_qos_map_attribute(_In_ sai_object_id_t qos_map_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = qos_map_id };
+    char                   key_str[MAX_KEY_STR_LEN];
 
-    return sai_set_attribute(&key, SAI_OBJECT_TYPE_QOS_MAP, attr);
+    SX_LOG_ENTER();
+
+    qos_map_key_to_str(qos_map_id, key_str);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_QOS_MAP, qos_map_vendor_attribs, attr);
 }
 
 /**
@@ -885,8 +914,13 @@ static sai_status_t mlnx_get_qos_map_attribute(_In_ sai_object_id_t     qos_map_
                                                _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = qos_map_id };
+    char                   key_str[MAX_KEY_STR_LEN];
 
-    return sai_get_attributes(&key, SAI_OBJECT_TYPE_QOS_MAP, attr_count, attr_list);
+    SX_LOG_ENTER();
+
+    qos_map_key_to_str(qos_map_id, key_str);
+    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_QOS_MAP,
+                              qos_map_vendor_attribs, attr_count, attr_list);
 }
 
 /**

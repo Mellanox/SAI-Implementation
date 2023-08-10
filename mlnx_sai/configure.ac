@@ -47,9 +47,9 @@ dnl Define an input config option to control syslog support
 AC_ARG_ENABLE(syslog,
 [  --enable-syslog    Turn on syslog],
 [case "${enableval}" in
-        yes) syslog=true ;;
-        no)  syslog=false ;;
-        *) AC_MSG_ERROR(bad value ${enableval} for --enable-syslog) ;;
+	yes) syslog=true ;;
+	no)  syslog=false ;;
+	*) AC_MSG_ERROR(bad value ${enableval} for --enable-syslog) ;;
 esac],[syslog=false])
 AM_CONDITIONAL(CONFIG_SYSLOG, test x$syslog = xtrue)
 
@@ -57,9 +57,9 @@ dnl Define an input config option to control debug compile
 AC_ARG_ENABLE(debug,
 [  --enable-debug    Turn on debugging],
 [case "${enableval}" in
-        yes) debug=true ;;
-        no)  debug=false ;;
-        *) AC_MSG_ERROR(bad value ${enableval} for --enable-debug) ;;
+	yes) debug=true ;;
+	no)  debug=false ;;
+	*) AC_MSG_ERROR(bad value ${enableval} for --enable-debug) ;;
 esac],[debug=false])
 AM_CONDITIONAL(DEBUG, test x$debug = xtrue)
 
@@ -164,26 +164,6 @@ AM_CONDITIONAL(XML2_ELDK5_LA_WA, test x`echo $with_xml2 | grep powerpc-4xx` != x
 
 CFLAGS_SAI_INTERFACE_COMMON="-Wall -Wswitch -Wunused -Werror -fPIC -fno-strict-aliasing -Wextra -Wno-unused-parameter -Wdate-time -D_FORTIFY_SOURCE=2 -fstack-protector-strong -Wformat -Werror=format-security -Wno-psabi"
 AC_SUBST(CFLAGS_SAI_INTERFACE_COMMON)
-
-AC_ARG_ENABLE(asan,
-[  --enable-asan      Compile with address sanitizer],
-[case "${enableval}" in
-    yes) asan_enabled=true ;;
-    no)  asan_enabled=false ;;
-    *) AC_MSG_ERROR(bad value ${enableval} for --enable-asan) ;;
-esac],[asan_enabled=false])
-
-if test "x$asan_enabled" = "xtrue"; then
-    CFLAGS_ASAN+=" -fsanitize=address"
-    CFLAGS_ASAN+=" -DASAN_ENABLED"
-    CFLAGS_ASAN+=" -ggdb -fno-omit-frame-pointer -U_FORTIFY_SOURCE"
-    AC_SUBST(CFLAGS_ASAN)
-
-    LDFLAGS_ASAN+=" -lasan"
-    AC_SUBST(LDFLAGS_ASAN)
-fi
-
-AM_CONDITIONAL(ASAN_ENABLED, test x$asan_enabled = xtrue)
 
 dnl Create the following Makefiles
 AC_OUTPUT([Makefile src/Makefile etc/sai.pc etc/Makefile])

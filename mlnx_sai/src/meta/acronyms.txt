@@ -6,6 +6,7 @@ AN - Auto Negotiation
 API - Application Program Interface
 ARP - Address Resolution Protocol
 ASIC - Application Specific Integrated Circuit
+BER - Bit Error Ratio
 BFD - Bidirectional Forwarding Detection
 BFDV6 - Bidirectional Forwarding Detection for IPv6
 BGP - Border Gateway Protocol
@@ -21,6 +22,7 @@ CIR - Committed Information Rate
 CPLD - Complex programmable logic device
 CPU - Central Processing Unit
 CRC - Cyclic Redundancy Code
+DDR - 20G speed
 DHCP - Dynamic Host Configuration Protocol
 DHCPV6 - Dynamic Host Configuration Protocol for IPv6
 DLD - Dead Lock Detection
@@ -36,25 +38,33 @@ ECC - Error Correction Code
 ECMP - Equal Cost Multi-Path
 ECN - Explicit Congestion Notification
 ECT - ECN Capable Transport
+EDR - 100G speed
 EEE - Electrical and Electronics Engineering
 EEPROM - Electrically erasable programmable read-only memory
 ERSPAN - Encapsulated Remote SPAN
 ESN - Extended Sequence Number
+ETH - eth
 FCS - Frame Check Sequence
 FD - File Descriptor
 FDB - Forwarding Data Base
+FDR - 56G speed
 FEC - Forward Error Correction
+FNM - Fabric Network Manager
 FPGA - Field Programmable Gate Array
 FW  - Firmware
 GCM - Galois Counter Mode
 GMII - Gigabit Media-Independent Interface
-GNMI - gRPC Network Management Interface
 GPB - Google Protocol Buffers
-GPE - Generic Programmable Extensions
 GRE - Generic Routing Encapsulation
 GRPC - GRPC Remote Procedure Call
+GUID - Globally Unique Identifier
+HDR - 200G speed
 HW - Hardware
 I2C - Inter Integrated Circuit
+I2C - I squared C
+IB - infiniband
+IBV0 - IB version 0
+IBVE - IBvE
 ICMP - Internet Control Message Protocol
 ICMPV6 - Internet Control Message Protocol for IPv6
 IEEE - Institute of Electrical and Electronics Engineers
@@ -77,34 +87,32 @@ LDP - Label Distribution Protocol
 LPM - Longest Prefix Match
 LSP - Label Switched Path
 MAC - Medium Access Control
+MAF - Mission As FNM
 MDIO - Management Data Input/Output
 MDIX - Medium Dependent Interface Crossover
 MMU - Memory Management Unit
 MPLS - Multi Protocol Label Switching
 MTU - Maximum Transmission Unit
 NAPT - Network Address Port Translation
+NDR - 200G speed
 NHLFE - Next Hop Label Forwarding Entry
 NPU - Numeric Processing Unit
 NRZ - Non Return to Zero
-NTPCLIENT - Network Time Protocol Client
-NTPSERVER - Network Time Protocol Server
 NVGRE - Network Virtualization using Generic Routing Encapsulation
 OAM - Operations Administration and Maintenance
 OUI - Organizationally Unique Identifier
-P4RT - Programming Protocol-independent Packet Processors Runtime
 PAM4 - Pulse Amplitude Modulation 4-level
 PBS - Peak Burst Size
 PCI - Peripheral Component Interconnect
-PCS - Physical Coding Sublayer
 PFC - Priority Flow Control
 PHP - Penultimate Hop Pop
 PIR - Peak Information Rate
-PMD - Physical Medium Dependent
 PN - Packet Number
 PRBS - Pseudorandom binary sequence
 PSC - PHB Scheduling Class
 PSP - Penultimate Segment Pop
 PTP - Precision time protocol
+QDR - 40G speed
 QOS - Quality of Service
 RARP - Reverse Address Resolution Protocol
 RFC - Request For Comment
@@ -118,6 +126,7 @@ SAK - Secure Association Key
 SC - Secure Channel
 SCI - Secure Channel Identifier
 SDK - Software Development Kit
+SDR - 10G speed
 SFI - SerDes Framer Interface
 SFLOW - Sampled Flow
 SG - (S,G) Source-specific multicast
@@ -147,6 +156,7 @@ UDF - User-Defined Field
 UDP - User Datagram Protocol
 USD - Ultimate Segment Decapsulation
 USP - Ultimate Segment Pop
+VL - virtual lane
 VNI - Virtual Network Interface
 VNID - Virtual Network Identifier
 VOQ - Virtual Output Queue

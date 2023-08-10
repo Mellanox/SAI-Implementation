@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<root>
+	<platform_info type="7800">
+
+		<!-- Device MAC address  -->
+		<device-mac-address>00:02:03:04:05:00</device-mac-address>
+
+		<!-- ISSU enabled -->
+		<issu-enabled>0</issu-enabled>
+
+		<!-- Number of ports in the following port list -->
+		<number-of-physical-ports>0</number-of-physical-ports>
+
+		<!-- List of ports in the device -->
+		<ports-list>
+		</ports-list>
+	</platform_info>
+</root>

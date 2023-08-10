@@ -137,6 +137,8 @@ sub ConstructSource
 
 sub GetValues
 {
+    my $expdir = "../../inc/experimental";
+
     my $dir = shift;
 
     my %enums = GetEnums $dir;
@@ -149,7 +151,7 @@ sub GetValues
 
     my ($fhb, $bin) = tempfile( SUFFIX => '.bin', UNLINK => 1  );
 
-    system("gcc $src -I. -I ../experimental -I '$dir' -o $bin") == 0 or die "gcc failed! $!";
+    system("gcc $src -I. -I '$dir' -I '$expdir' -o $bin") == 0 or die "gcc failed! $!";
 
     close $fhs;
     close $fhb;

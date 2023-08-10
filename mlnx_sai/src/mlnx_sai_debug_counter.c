@@ -30,16 +30,14 @@ static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNIN
 sai_status_t mlnx_hostif_trap_group_allocate(_Out_ sx_trap_group_t *trap_group);
 sai_status_t mlnx_hostif_trap_group_free(_In_ sx_trap_group_t trap_group);
 uint32_t mlnx_hostif_trap_group_db_free_entries_count(void);
-sai_status_t mlnx_policer_db_idx_to_data(_In_ mlnx_shm_rm_array_idx_t           idx,
-                                         _Out_ mlnx_policer_shm_array_entry_t **policer);
-sai_status_t db_init_sai_policer_data(_In_ sx_policer_attributes_t * policer_attr,
-                                      _Out_ mlnx_shm_rm_array_idx_t* shm_idx_policers_p);
+sai_status_t db_init_sai_policer_data(_In_ sx_policer_attributes_t* policer_attr,
+                                      _Out_ uint32_t              * db_policers_entry_index_p);
+void db_reset_policer_entry(_In_ uint32_t db_policers_entry_index);
 uint32_t mlnx_policer_db_free_entries_count(bool is_hostif);
 sai_status_t mlnx_policer_stats_get(_In_ sx_policer_id_t sx_policer, _In_ uint64_t       *count);
 sai_status_t mlnx_policer_stats_clear(_In_ sx_policer_id_t sx_policer);
 sai_status_t mlnx_hostif_sx_trap_is_configured(_In_ sx_trap_id_t          sx_trap,
                                                _Out_ sai_packet_action_t *action,
-                                               _Out_ bool                *is_present,
                                                _Out_ bool                *is_configured);
 
 static sai_status_t mlnx_debug_counter_attr_get(_In_ const sai_object_key_t   *key,
@@ -84,15 +82,8 @@ static const mlnx_attr_enum_info_t debug_counter_enum_info[] = {
     [SAI_DEBUG_COUNTER_ATTR_BIND_METHOD] = ATTR_ENUM_VALUES_ALL(),
     [SAI_DEBUG_COUNTER_ATTR_IN_DROP_REASON_LIST] = ATTR_ENUM_VALUES_FN(mlnx_dbg_counter_in_drop_reasons_capab_get),
 };
-static size_t debug_counter_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
-{
-    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
-
-    return snprintf(str, max_len, "[ID:%u]", mlnx_oid.id.debug_counter_db_idx.idx);
-}
-const mlnx_obj_type_attrs_info_t mlnx_debug_counter_obj_type_info =
-{ debug_counter_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(debug_counter_enum_info), OBJ_STAT_CAP_INFO_EMPTY(),
-  debug_counter_info_print};
+const mlnx_obj_type_attrs_info_t   mlnx_debug_counter_obj_type_info =
+{ debug_counter_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(debug_counter_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 
 typedef enum mlnx_dbg_counter_drop_reason_type {
     DROP_REASON_TYPE_INVALID,
@@ -267,6 +258,22 @@ static sai_status_t mlnx_debug_counter_db_find(_In_ sx_trap_id_t sx_trap, _Out_ 
     return SAI_STATUS_FAILURE;
 }
 
+static void debug_counter_key_to_str(_In_ const sai_object_id_t debug_counter_obj_id, _Out_ char *key_str)
+{
+    sai_status_t     status;
+    mlnx_object_id_t mlnx_oid;
+
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_DEBUG_COUNTER, debug_counter_obj_id, &mlnx_oid);
+    if (SAI_ERR(status)) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid sai debug counter obj ID %" PRId64 "", debug_counter_obj_id);
+    } else {
+        snprintf(key_str,
+                 MAX_KEY_STR_LEN,
+                 "Debug counter obj idx %d",
+                 mlnx_oid.id.debug_counter_db_idx.idx);
+    }
+}
+
 sai_status_t mlnx_shm_rm_debug_counter_size_get(_Out_ size_t *size)
 {
     *size = MIN(g_resource_limits.policer_host_ifc_pool_size, g_resource_limits.hw_trap_groups_num_max);
@@ -389,6 +396,7 @@ static sai_status_t mlnx_debug_counter_db_free(_In_ mlnx_shm_rm_array_idx_t idx)
     }
 
     dbg_counter->type = 0;
+    dbg_counter->policer_db_idx = 0;
     dbg_counter->sx_trap_group = SX_TRAP_GROUP_INVALID;
     memset(dbg_counter->drop_reasons, 0, sizeof(dbg_counter->drop_reasons));
 
@@ -737,7 +745,6 @@ static sai_status_t mlnx_debug_counter_drop_reasons_to_sdk(_In_ const mlnx_drop_
     int32_t                                    drop_reason;
     uint32_t                                   drop_reason_idx;
     uint32_t                                   traps_added = 0;
-    uint32_t                                   ii, jj;
 
     assert(info);
     assert(drop_reasons);
@@ -757,17 +764,6 @@ static sai_status_t mlnx_debug_counter_drop_reasons_to_sdk(_In_ const mlnx_drop_
         memcpy(&sx_traps[traps_added], reason_info->trap_list.list, sizeof(sx_trap_id_t) *
                reason_info->trap_list.count);
         traps_added += reason_info->trap_list.count;
-    }
-
-    /* delete duplicates */
-    for (ii = 0; ii < traps_added; ii++) {
-        for (jj = ii + 1; jj < traps_added; jj++) {
-            if (sx_traps[ii] == sx_traps[jj]) {
-                sx_traps[jj] = sx_traps[traps_added - 1];
-                traps_added--;
-                break;
-            }
-        }
     }
 
     if (traps_added > *sx_traps_count) {
@@ -979,6 +975,7 @@ out:
 
 static sai_status_t mlnx_debug_counter_trap_action_handle(_In_ const mlnx_debug_counter_t *dbg_counter,
                                                           _In_ sx_trap_id_t                sx_trap,
+                                                          _In_ sai_packet_action_t         old_action,
                                                           _In_ sai_packet_action_t         new_action)
 {
     sx_status_t             sx_status;
@@ -986,15 +983,26 @@ static sai_status_t mlnx_debug_counter_trap_action_handle(_In_ const mlnx_debug_
     sx_host_ifc_trap_attr_t trap_attr;
     sx_access_cmd_t         cmd;
     sx_trap_action_t        sx_action;
+    bool                    update = false;
 
     assert(dbg_counter);
 
-    if (new_action == SAI_PACKET_ACTION_DROP) {
+    if ((old_action != SAI_PACKET_ACTION_DROP) &&
+        (new_action == SAI_PACKET_ACTION_DROP)) {
         cmd = SX_ACCESS_CMD_SET;
         sx_action = SX_TRAP_ACTION_EXCEPTION_TRAP;
-    } else {
+        update = true;
+    }
+
+    if ((old_action == SAI_PACKET_ACTION_DROP) &&
+        (new_action != SAI_PACKET_ACTION_DROP)) {
         cmd = SX_ACCESS_CMD_UNSET;
         sx_action = SX_TRAP_ACTION_SET_FW_DEFAULT;
+        update = true;
+    }
+
+    if (!update) {
+        return SAI_STATUS_SUCCESS;
     }
 
     memset(&trap_key, 0, sizeof(trap_key));
@@ -1044,7 +1052,7 @@ sai_status_t mlnx_debug_counter_db_trap_action_update(_In_ sx_trap_id_t sx_trap,
         return SAI_STATUS_FAILURE;
     }
 
-    status = mlnx_debug_counter_trap_action_handle(dbg_counter, sx_trap, action);
+    status = mlnx_debug_counter_trap_action_handle(dbg_counter, sx_trap, trap_db->action, action);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -1063,28 +1071,28 @@ static sai_status_t mlnx_debug_counter_sx_trap_db_update(_In_ const mlnx_debug_c
     mlnx_shm_rm_array_idx_t    rm_idx;
     mlnx_debug_counter_trap_t *trap_db;
     sai_packet_action_t        action = SAI_PACKET_ACTION_TRAP;
-    bool                       is_configured, is_present;
+    bool                       is_configured;
 
     assert(dbg_counter);
     assert(need_to_configure);
 
-    status = mlnx_hostif_sx_trap_is_configured(sx_trap, &action, &is_present, &is_configured);
+    status = mlnx_hostif_sx_trap_is_configured(sx_trap, &action, &is_configured);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    if (!is_present) {
+    if (!is_configured) {
         *need_to_configure = true;
         return SAI_STATUS_SUCCESS;
     }
+
+    *need_to_configure = (action == SAI_PACKET_ACTION_DROP);
 
     status = mlnx_debug_counter_db_find(sx_trap, &trap_db);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("SX trap %u is user-configured but not found in counter db\n", sx_trap);
         return status;
     }
-
-    *need_to_configure = (!is_configured) || (action == SAI_PACKET_ACTION_DROP);
 
     trap_db->action = action;
 
@@ -1152,21 +1160,6 @@ static sai_status_t mlnx_debug_counter_sx_trap_group_update(_In_ const mlnx_debu
         trap_key.trap_key_attr.trap_id = sx_traps[trap_idx];
         trap_attr.attr.trap_id_attr.trap_group = sx_trap_group;
         trap_attr.attr.trap_id_attr.trap_action = action;
-
-        if (!set) {
-            uint32_t trap_db_index = 0;
-            status = mlnx_get_trap_db_index_by_sx_trap(sx_traps[trap_idx], &trap_db_index);
-            if (SAI_OK(status) && g_sai_db_ptr->traps_db[trap_db_index].is_used) {
-                status = mlnx_trap_reset_group_impl(trap_db_index,
-                                                    g_sai_db_ptr->traps_db[trap_db_index].trap_group);
-                if (SAI_ERR(status)) {
-                    SX_LOG_ERR("Failed to reset trap_group at index [%u]\n", trap_db_index);
-                    return status;
-                }
-                SX_LOG_INF("Reset the trap_group back to [OID:0x%lX] while disabling debug counter.\n",
-                           g_sai_db_ptr->traps_db[trap_db_index].trap_group);
-            }
-        }
 
         sx_status = sx_api_host_ifc_trap_id_ext_set(gh_sdk, cmd, &trap_key, &trap_attr);
         if (SX_ERR(sx_status)) {
@@ -1326,21 +1319,20 @@ out:
     return status;
 }
 
-static sai_status_t mlnx_debug_counter_sx_init(_In_ mlnx_debug_counter_t     *dbg_counter,
-                                               _In_ const sx_trap_id_t       *sx_traps,
-                                               _In_ uint32_t                  sx_traps_count,
-                                               _Out_ sx_trap_group_t         *sx_trap_group,
-                                               _Out_ mlnx_shm_rm_array_idx_t *policer_db_idx)
+static sai_status_t mlnx_debug_counter_sx_init(_In_ mlnx_debug_counter_t *dbg_counter,
+                                               _In_ const sx_trap_id_t   *sx_traps,
+                                               _In_ uint32_t              sx_traps_count,
+                                               _Out_ sx_trap_group_t     *sx_trap_group,
+                                               _Out_ uint32_t            *policer_db_idx)
 {
-    sai_status_t                    status;
-    sx_status_t                     sx_status;
-    sx_policer_attributes_t         policer_attrs;
-    sx_host_ifc_trap_key_t          trap_key;
-    sx_host_ifc_trap_attr_t         trap_attr;
-    sx_trap_group_attributes_t      trap_group_attributes;
-    sx_policer_id_t                *sx_policer = NULL;
-    bool                            is_policer_bound = false, is_trap_group_set = false;
-    mlnx_policer_shm_array_entry_t *policer_db_entry = NULL;
+    sai_status_t               status;
+    sx_status_t                sx_status;
+    sx_policer_attributes_t    policer_attrs;
+    sx_host_ifc_trap_key_t     trap_key;
+    sx_host_ifc_trap_attr_t    trap_attr;
+    sx_trap_group_attributes_t trap_group_attributes;
+    sx_policer_id_t           *sx_policer = NULL;
+    bool                       is_policer_bound = false, is_trap_group_set = false;
 
     memset(&policer_attrs, 0, sizeof(policer_attrs));
     memset(&trap_key, 0, sizeof(trap_key));
@@ -1348,10 +1340,10 @@ static sai_status_t mlnx_debug_counter_sx_init(_In_ mlnx_debug_counter_t     *db
     memset(&trap_group_attributes, 0, sizeof(trap_group_attributes));
 
     *sx_trap_group = SX_TRAP_GROUP_INVALID;
+    *policer_db_idx = (uint32_t)-1;
 
     /* Policer */
     policer_attrs.is_host_ifc_policer = true;
-    policer_attrs.is_span_session_policer = false;
     policer_attrs.rate_type = SX_POLICER_RATE_TYPE_SINGLE_RATE_E;
     policer_attrs.red_action = SX_POLICER_ACTION_DISCARD;
     policer_attrs.cbs = 4;
@@ -1362,12 +1354,7 @@ static sai_status_t mlnx_debug_counter_sx_init(_In_ mlnx_debug_counter_t     *db
         goto out;
     }
 
-    status = mlnx_policer_db_idx_to_data(*policer_db_idx, &policer_db_entry);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
-    sx_policer = &policer_db_entry->data.sx_policer_id_trap;
+    sx_policer = &g_sai_db_ptr->policers_db[*policer_db_idx].sx_policer_id_trap;
 
     sx_status = sx_api_policer_set(gh_sdk, SX_ACCESS_CMD_CREATE, &policer_attrs, sx_policer);
     if (SX_ERR(sx_status)) {
@@ -1417,7 +1404,7 @@ static sai_status_t mlnx_debug_counter_sx_init(_In_ mlnx_debug_counter_t     *db
     }
 
     SX_LOG_DBG("Created sx trap group %u and policer %lu (db idx %u)\n",
-               *sx_trap_group, *sx_policer, policer_db_idx->idx);
+               *sx_trap_group, *sx_policer, *policer_db_idx);
 
 out:
     if (SAI_ERR(status)) {
@@ -1440,12 +1427,8 @@ out:
             }
         }
 
-        if (policer_db_entry != NULL) {
-            db_reset_policer_entry(&policer_db_entry->data);
-        }
-
-        if (!MLNX_SHM_RM_ARRAY_IDX_IS_UNINITIALIZED(*policer_db_idx)) {
-            status = mlnx_shm_rm_array_free(*policer_db_idx);
+        if (*policer_db_idx != (uint32_t)-1) {
+            db_reset_policer_entry(*policer_db_idx);
         }
     }
 
@@ -1500,10 +1483,9 @@ static sai_status_t mlnx_debug_counter_sx_unbind_traps(_In_ const mlnx_debug_cou
 
 static sai_status_t mlnx_debug_counter_sx_uninit(_In_ const mlnx_debug_counter_t *dbg_counter)
 {
-    sai_status_t                    status;
-    sx_status_t                     sx_status;
-    sx_policer_id_t                 sx_policer;
-    mlnx_policer_shm_array_entry_t *policer_array;
+    sai_status_t    status;
+    sx_status_t     sx_status;
+    sx_policer_id_t sx_policer;
 
     assert(dbg_counter);
 
@@ -1513,15 +1495,7 @@ static sai_status_t mlnx_debug_counter_sx_uninit(_In_ const mlnx_debug_counter_t
     }
 
     /* Policer */
-    status = mlnx_policer_db_idx_to_data(dbg_counter->policer_db_idx, &policer_array);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-    if (!policer_array->array_hdr.is_used) {
-        return SAI_STATUS_FAILURE;
-    }
-
-    sx_policer = policer_array->data.sx_policer_id_trap;
+    sx_policer = g_sai_db_ptr->policers_db[dbg_counter->policer_db_idx].sx_policer_id_trap;
     sx_status = sx_api_host_ifc_policer_bind_set(gh_sdk, SX_ACCESS_CMD_UNBIND, DEFAULT_ETH_SWID,
                                                  dbg_counter->sx_trap_group, sx_policer);
     if (SX_ERR(sx_status)) {
@@ -1541,7 +1515,7 @@ static sai_status_t mlnx_debug_counter_sx_uninit(_In_ const mlnx_debug_counter_t
         return sdk_to_sai(sx_status);
     }
 
-    db_reset_policer_entry(&policer_array->data);
+    db_reset_policer_entry(dbg_counter->policer_db_idx);
 
     /* Trap group */
     sx_status = sx_api_host_ifc_trap_group_ext_set(gh_sdk, SX_ACCESS_CMD_UNSET, DEFAULT_ETH_SWID,
@@ -1622,11 +1596,12 @@ static sai_status_t mlnx_debug_counter_create_impl(_In_ sai_debug_counter_type_t
     sx_trap_group_t sx_trap_group = SX_TRAP_GROUP_INVALID;
     sx_trap_id_t    sx_traps[MLNX_DBG_COUNTER_TRAP_COUNT_MAX];
     uint32_t        sx_trap_count = MLNX_DBG_COUNTER_TRAP_COUNT_MAX;
+    uint32_t        policer_db_idx;
     int32_t         drop_reasons_expanded[MLNX_DEBUG_COUNTER_MAX_REASONS] = {0};
     uint32_t        drop_reasons_expanded_count =
         MLNX_DEBUG_COUNTER_MAX_REASONS;
     mlnx_debug_counter_t                 *dbg_counter = NULL;
-    mlnx_shm_rm_array_idx_t               dbg_counter_db_idx, policer_db_idx = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
+    mlnx_shm_rm_array_idx_t               dbg_counter_db_idx;
     bool                                  is_valid;
     const mlnx_drop_counter_stage_info_t *drop_reasons_info;
     sx_acl_global_attributes_t            acl_attrs = {0};
@@ -1724,15 +1699,31 @@ static sai_status_t mlnx_create_debug_counter(_Out_ sai_object_id_t      *debug_
     const sai_attribute_value_t *attr_id = NULL;
     sai_debug_counter_type_t     type;
     sai_debug_counter_attr_t     drop_list_attr;
+    char                         list_str[MAX_LIST_VALUE_STR_LEN] = {0};
+    char                         key_str[MAX_KEY_STR_LEN] = {0};
     uint32_t                     attr_index;
 
     SX_LOG_ENTER();
 
-    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_DEBUG_COUNTER, debug_counter_id);
+    if (NULL == debug_counter_id) {
+        SX_LOG_ERR("NULL debug_counter_id param.\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    status = check_attribs_metadata(attr_count,
+                                    attr_list,
+                                    SAI_OBJECT_TYPE_DEBUG_COUNTER,
+                                    debug_counter_vendor_attribs,
+                                    SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed attribs check.\n");
+        SX_LOG_EXIT();
         return status;
     }
-    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_DEBUG_COUNTER);
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_DEBUG_COUNTER, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create debug counter object\nAttribs %s\n", list_str);
 
     find_attrib_in_list(attr_count, attr_list, SAI_DEBUG_COUNTER_ATTR_TYPE, &attr_id, &attr_index);
     assert(attr_id);
@@ -1754,7 +1745,8 @@ static sai_status_t mlnx_create_debug_counter(_Out_ sai_object_id_t      *debug_
         return status;
     }
 
-    MLNX_LOG_OID_CREATED(*debug_counter_id);
+    debug_counter_key_to_str(*debug_counter_id, key_str);
+    SX_LOG_NTC("Created %s\n", key_str);
 
     return status;
 }
@@ -1765,11 +1757,13 @@ static sai_status_t mlnx_remove_debug_counter(_In_ sai_object_id_t debug_counter
     sx_status_t                sx_status = SX_STATUS_SUCCESS;
     mlnx_debug_counter_t      *dbg_counter = NULL;
     mlnx_shm_rm_array_idx_t    idx = {0};
+    char                       key_str[MAX_KEY_STR_LEN] = {0};
     sx_acl_global_attributes_t acl_attrs = {.disable_acl_drop_trap = 1};
 
     SX_LOG_ENTER();
 
-    MLNX_LOG_OID_REMOVE(debug_counter_id);
+    debug_counter_key_to_str(debug_counter_id, key_str);
+    SX_LOG_NTC("Remove %s\n", key_str);
 
     sai_db_write_lock();
 
@@ -1809,8 +1803,18 @@ static sai_status_t mlnx_set_debug_counter_attribute(_In_ const sai_object_id_t 
                                                      _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = debug_counter_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+    sai_status_t           status = SAI_STATUS_FAILURE;
 
-    return sai_set_attribute(&key, SAI_OBJECT_TYPE_DEBUG_COUNTER, attr);
+    SX_LOG_ENTER();
+
+    debug_counter_key_to_str(debug_counter_id, key_str);
+
+    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_DEBUG_COUNTER,
+                               debug_counter_vendor_attribs, attr);
+
+    SX_LOG_EXIT();
+    return status;
 }
 
 static sai_status_t mlnx_get_debug_counter_attribute(_In_ const sai_object_id_t debug_counter_id,
@@ -1818,8 +1822,18 @@ static sai_status_t mlnx_get_debug_counter_attribute(_In_ const sai_object_id_t 
                                                      _Inout_ sai_attribute_t   *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = debug_counter_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+    sai_status_t           status = SAI_STATUS_FAILURE;
 
-    return sai_get_attributes(&key, SAI_OBJECT_TYPE_DEBUG_COUNTER, attr_count, attr_list);
+    SX_LOG_ENTER();
+
+    debug_counter_key_to_str(debug_counter_id, key_str);
+
+    status = sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_DEBUG_COUNTER,
+                                debug_counter_vendor_attribs, attr_count, attr_list);
+
+    SX_LOG_EXIT();
+    return status;
 }
 
 sai_status_t mlnx_debug_counter_log_set(sx_verbosity_level_t level)

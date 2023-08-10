@@ -21,8 +21,6 @@
 #include <saimetadata.h>
 #include <mlnx_sai.h>
 
-#define OID_STR_MAX_SIZE 18
-
 typedef struct _mlnx_dbg_dump_enum_mapper_t {
     char **map;
     size_t size;
@@ -42,10 +40,5 @@ void SAI_dump_sai_enum_to_str(_In_ const sai_enum_metadata_t *metadata,
                               _In_ uint64_t                   values_num,
                               _Out_ char                     *str,
                               _In_ uint32_t                   len);
-
-uint32_t mlnx_get_shm_rm_id(mlnx_shm_rm_array_idx_t idx);
-
-void oid_to_hex_str(char           *str,
-                    sai_object_id_t oid);
 
 #endif /* _MLNX_SAI_DBG_H_ */

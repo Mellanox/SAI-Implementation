@@ -666,10 +666,7 @@ void check_attr_object_type_provided(
         case SAI_ATTR_VALUE_TYPE_SEGMENT_LIST:
         case SAI_ATTR_VALUE_TYPE_IP_ADDRESS_LIST:
         case SAI_ATTR_VALUE_TYPE_PORT_EYE_VALUES_LIST:
-        case SAI_ATTR_VALUE_TYPE_LATCH_STATUS:
-        case SAI_ATTR_VALUE_TYPE_PORT_LANE_LATCH_STATUS_LIST:
         case SAI_ATTR_VALUE_TYPE_TIMESPEC:
-        case SAI_ATTR_VALUE_TYPE_JSON:
 
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_BOOL:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT8:
@@ -697,7 +694,7 @@ void check_attr_object_type_provided(
         case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_IP_ADDRESS:
         case SAI_ATTR_VALUE_TYPE_IPV4:
         case SAI_ATTR_VALUE_TYPE_IPV6:
-
+        case SAI_ATTR_VALUE_TYPE_AGGREGATED_PORT_DATA:
         case SAI_ATTR_VALUE_TYPE_ENCRYPT_KEY:
         case SAI_ATTR_VALUE_TYPE_AUTH_KEY:
 
@@ -967,7 +964,6 @@ void check_attr_default_required(
         case SAI_ATTR_VALUE_TYPE_MAP_LIST:
         case SAI_ATTR_VALUE_TYPE_IP_ADDRESS_LIST:
         case SAI_ATTR_VALUE_TYPE_PORT_EYE_VALUES_LIST:
-        case SAI_ATTR_VALUE_TYPE_PORT_LANE_LATCH_STATUS_LIST:
         case SAI_ATTR_VALUE_TYPE_SYSTEM_PORT_CONFIG_LIST:
 
             if (((md->objecttype == SAI_OBJECT_TYPE_PORT) || (md->objecttype == SAI_OBJECT_TYPE_PORT_SERDES))
@@ -1023,10 +1019,6 @@ void check_attr_default_required(
              * Gearbox exception for mandatory pointer attribute
              * to support CONST on list.
              */
-
-            break;
-
-        case SAI_ATTR_VALUE_TYPE_JSON:
 
             break;
 
@@ -1175,7 +1167,6 @@ void check_attr_default_value_type(
                 case SAI_ATTR_VALUE_TYPE_MAP_LIST:
                 case SAI_ATTR_VALUE_TYPE_IP_ADDRESS_LIST:
                 case SAI_ATTR_VALUE_TYPE_PORT_EYE_VALUES_LIST:
-                case SAI_ATTR_VALUE_TYPE_PORT_LANE_LATCH_STATUS_LIST:
                 case SAI_ATTR_VALUE_TYPE_SYSTEM_PORT_CONFIG_LIST:
                     break;
 
@@ -1192,7 +1183,6 @@ void check_attr_default_value_type(
             {
                 case SAI_ATTR_VALUE_TYPE_MAC:
                 case SAI_ATTR_VALUE_TYPE_UINT64:
-                case SAI_ATTR_VALUE_TYPE_JSON:
                     break;
 
                 default:
@@ -1776,7 +1766,6 @@ void check_attr_allow_flags(
             case SAI_ATTR_VALUE_TYPE_SEGMENT_LIST:
             case SAI_ATTR_VALUE_TYPE_IP_ADDRESS_LIST:
             case SAI_ATTR_VALUE_TYPE_PORT_EYE_VALUES_LIST:
-            case SAI_ATTR_VALUE_TYPE_PORT_LANE_LATCH_STATUS_LIST:
             case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT8_LIST:
             case SAI_ATTR_VALUE_TYPE_SYSTEM_PORT_CONFIG_LIST:
             case SAI_ATTR_VALUE_TYPE_PORT_ERR_STATUS_LIST:
@@ -1795,6 +1784,7 @@ void check_attr_allow_flags(
             case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_OBJECT_LIST:
             case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_OBJECT_LIST:
             case SAI_ATTR_VALUE_TYPE_OBJECT_LIST:
+            case SAI_ATTR_VALUE_TYPE_UINT8_LIST:
                 break;
 
             default:
@@ -2496,6 +2486,14 @@ void check_attr_existing_objects(
 
             break;
 
+        case SAI_ATTR_VALUE_TYPE_AGGREGATED_PORT_DATA:
+
+            /*
+             * Allow for aggregated port data.
+             */
+
+            break;
+
         default:
 
             META_MD_ASSERT_FAIL(md, "not supported attr value type on existing object");
@@ -2621,8 +2619,7 @@ void check_attr_is_primitive(
         case SAI_ATTR_VALUE_TYPE_SYSTEM_PORT_CONFIG_LIST:
         case SAI_ATTR_VALUE_TYPE_PORT_ERR_STATUS_LIST:
         case SAI_ATTR_VALUE_TYPE_UINT16_RANGE_LIST:
-        case SAI_ATTR_VALUE_TYPE_PORT_LANE_LATCH_STATUS_LIST:
-        case SAI_ATTR_VALUE_TYPE_JSON:
+        case SAI_ATTR_VALUE_TYPE_AGGREGATED_PORT_DATA:
 
             if (md->isprimitive)
             {
@@ -2680,7 +2677,6 @@ void check_attr_is_primitive(
         case SAI_ATTR_VALUE_TYPE_MACSEC_SALT:
         case SAI_ATTR_VALUE_TYPE_SYSTEM_PORT_CONFIG:
         case SAI_ATTR_VALUE_TYPE_FABRIC_PORT_REACHABILITY:
-        case SAI_ATTR_VALUE_TYPE_LATCH_STATUS:
 
             if (!md->isprimitive)
             {
@@ -3690,7 +3686,6 @@ void check_non_object_id_object_attrs()
             {
                 case SAI_ATTR_FLAGS_MANDATORY_ON_CREATE | SAI_ATTR_FLAGS_CREATE_AND_SET:
                 case SAI_ATTR_FLAGS_CREATE_AND_SET:
-                case SAI_ATTR_FLAGS_CREATE_ONLY:
                     break;
 
                 default:
@@ -4715,8 +4710,7 @@ void check_object_ro_list(
             oi->objecttype == SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY ||
             oi->objecttype == SAI_OBJECT_TYPE_DTEL ||
             oi->objecttype == SAI_OBJECT_TYPE_DTEL_QUEUE_REPORT ||
-            oi->objecttype == SAI_OBJECT_TYPE_DTEL_EVENT ||
-            oi->objecttype == SAI_OBJECT_TYPE_GENERIC_PROGRAMMABLE)
+            oi->objecttype == SAI_OBJECT_TYPE_DTEL_EVENT)
     {
         /*
          * We skip hostif table entry since there is no 1 object which can
@@ -5363,10 +5357,6 @@ void check_all_enums()
 
         check_single_enum(emd);
     }
-
-    check_single_enum(&sai_metadata_enum_sai_global_api_type_t);
-    check_single_enum(&sai_metadata_enum_sai_switch_notification_type_t);
-    check_single_enum(&sai_metadata_enum_sai_switch_pointer_type_t);
 }
 
 void check_sai_version()

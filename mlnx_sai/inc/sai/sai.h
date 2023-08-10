@@ -74,7 +74,6 @@
 #include "saiisolationgroup.h"
 #include "saidebugcounter.h"
 #include "saimymac.h"
-#include "saigenericprogrammable.h"
 #include "saiversion.h"
 
 /**
@@ -139,7 +138,6 @@ typedef enum _sai_api_t
     SAI_API_SYSTEM_PORT      = 44, /**< sai_system_port_api_t */
     SAI_API_MY_MAC           = 45, /**< sai_my_mac_api_t */
     SAI_API_IPSEC            = 46, /**< sai_ipsec_api_t */
-    SAI_API_GENERIC_PROGRAMMABLE = 47, /**<sai_generic_programmable_t */
     SAI_API_MAX,                   /**< total number of APIs */
 } sai_api_t;
 
@@ -281,6 +279,18 @@ sai_object_id_t sai_switch_id_query(
  */
 sai_status_t sai_dbg_generate_dump(
         _In_ const char *dump_file_name);
+
+/**
+ * @brief Generate dump file. The dump file may include SAI state information and vendor SDK information.
+ *
+ * @param[in] dump_file_name Full path for dump file
+ * @param[in] flags Flags regarding optional dump behavior
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+sai_status_t sai_dbg_generate_dump_ext(
+        _In_ const char *dump_file_name,
+        _In_ int32_t flags);
 
 /**
  * @brief Get SAI object type resource availability.

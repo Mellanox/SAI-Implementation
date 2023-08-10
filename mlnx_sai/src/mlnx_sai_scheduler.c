@@ -81,14 +81,8 @@ static const mlnx_attr_enum_info_t        sched_enum_info[] = {
     [SAI_SCHEDULER_ATTR_METER_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_METER_TYPE_BYTES, SAI_METER_TYPE_PACKETS)
 };
-static size_t scheduler_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
-{
-    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
-
-    return snprintf(str, max_len, "[sched_db[%u]]", mlnx_oid.id.u32);
-}
-const mlnx_obj_type_attrs_info_t mlnx_scheduler_obj_type_info =
-{ sched_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(sched_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), scheduler_info_print};
+const mlnx_obj_type_attrs_info_t          mlnx_scheduler_obj_type_info =
+{ sched_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(sched_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static sai_status_t sched_db_entry_get(sai_object_id_t oid, mlnx_sched_profile_t **sched)
 {
     sai_status_t status;
@@ -537,14 +531,26 @@ static sai_status_t mlnx_create_scheduler_profile(_Out_ sai_object_id_t      *sc
     sai_status_t                 status;
     uint32_t                     index;
     uint32_t                     ii;
+    char                         list_str[MAX_LIST_VALUE_STR_LEN];
 
     SX_LOG_ENTER();
 
-    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER, scheduler_id);
-    if (SAI_ERR(status)) {
+    if (NULL == scheduler_id) {
+        SX_LOG_ERR("NULL scheduler id param\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER,
+                                    sched_vendor_attribs,
+                                    SAI_COMMON_API_CREATE);
+
+    if (status != SAI_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
-    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER);
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create scheduler, %s\n", list_str);
 
     /* Set default values */
     sched.ets.max_shaper_rate = 0;
@@ -658,8 +664,7 @@ static sai_status_t mlnx_create_scheduler_profile(_Out_ sai_object_id_t      *sc
     sai_qos_db_sync();
     sai_qos_db_unlock();
 
-    MLNX_LOG_OID_CREATED(*scheduler_id);
-
+    SX_LOG_NTC("Created scheduler id=%" PRIx64 "\n", *scheduler_id);
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -696,8 +701,6 @@ static sai_status_t mlnx_remove_scheduler_profile(_In_ sai_object_id_t scheduler
 
     SX_LOG_ENTER();
 
-    MLNX_LOG_OID_REMOVE(scheduler_id);
-
     sai_qos_db_write_lock();
 
     status = sched_db_entry_get(scheduler_id, &sched);
@@ -730,8 +733,27 @@ out:
 
     sai_qos_db_unlock();
 
+    if (status == SAI_STATUS_SUCCESS) {
+        SX_LOG_NTC("Removed scheduler id=%" PRIx64 "\n", scheduler_id);
+    }
+
     SX_LOG_EXIT();
     return status;
+}
+
+static void mlnx_sched_key_to_str(_In_ sai_object_id_t qos_map_id, _Out_ char *key_str)
+{
+    sai_status_t sai_status;
+    uint32_t     id;
+
+    sai_status = mlnx_object_to_type(qos_map_id, SAI_OBJECT_TYPE_SCHEDULER,
+                                     &id, NULL);
+
+    if (sai_status != SAI_STATUS_SUCCESS) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid scheduler id");
+    } else {
+        snprintf(key_str, MAX_KEY_STR_LEN, "scheduler id %u", id);
+    }
 }
 
 /**
@@ -746,8 +768,12 @@ out:
 static sai_status_t mlnx_set_scheduler_attribute(_In_ sai_object_id_t scheduler_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = scheduler_id };
+    char                   key_str[MAX_KEY_STR_LEN];
 
-    return sai_set_attribute(&key, SAI_OBJECT_TYPE_SCHEDULER, attr);
+    SX_LOG_ENTER();
+
+    mlnx_sched_key_to_str(scheduler_id, key_str);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_SCHEDULER, sched_vendor_attribs, attr);
 }
 
 /**
@@ -766,8 +792,13 @@ static sai_status_t mlnx_get_scheduler_attribute(_In_ sai_object_id_t     schedu
                                                  _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = scheduler_id };
+    char                   key_str[MAX_KEY_STR_LEN];
 
-    return sai_get_attributes(&key, SAI_OBJECT_TYPE_SCHEDULER, attr_count, attr_list);
+    SX_LOG_ENTER();
+
+    mlnx_sched_key_to_str(scheduler_id, key_str);
+    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_SCHEDULER,
+                              sched_vendor_attribs, attr_count, attr_list);
 }
 
 sai_status_t mlnx_scheduler_to_port_apply_unlocked(sai_object_id_t scheduler_id, sai_object_id_t port_id)
@@ -865,12 +896,10 @@ sai_status_t mlnx_scheduler_to_group_apply(sai_object_id_t scheduler_id, sai_obj
     if (SAI_ERR(status)) {
         return status;
     }
-
-    /* For ISSU, only apply the changes to SDK LAG, keep the SAI db change on port level,
-     * because SAI LAG db may not exist during ISSU when the port is added to SDK LAG */
     if (mlnx_port_is_lag_member(port)) {
         port_id = mlnx_port_get_lag_id(port);
     }
+
     status = scheduler_to_group_apply(scheduler_id, port_id, level, index);
     if (SAI_ERR(status)) {
         return status;
@@ -879,12 +908,6 @@ sai_status_t mlnx_scheduler_to_group_apply(sai_object_id_t scheduler_id, sai_obj
     SX_LOG_DBG("Set scheduler profile id %" PRIx64 " on group at port %x level %u index %u\n",
                scheduler_id, port_id, level, index);
 
-    if (mlnx_port_is_sai_lag_member(port)) {
-        status = mlnx_port_fetch_lag_if_lag_member(&port);
-        if (SAI_ERR(status)) {
-            return status;
-        }
-    }
     port->sched_hierarchy.groups[level][index].scheduler_id = scheduler_id;
     return status;
 }
@@ -977,27 +1000,6 @@ sai_status_t mlnx_scheduler_to_queue_apply(sai_object_id_t scheduler_id, sai_obj
 
 out:
     return status;
-}
-
-sai_status_t mlnx_scheduler_port_hierarchy_db_clear(_In_ mlnx_port_config_t *port)
-{
-    mlnx_sched_obj_t        *obj;
-    mlnx_qos_queue_config_t *queue_cfg;
-    uint32_t                 lvl, ii;
-
-    for (lvl = 0; lvl < MAX_SCHED_LEVELS; lvl++) {
-        for (ii = 0; ii < MAX_SCHED_CHILD_GROUPS; ii++) {
-            obj = group_get(port, lvl, ii);
-            obj->scheduler_id = SAI_NULL_OBJECT_ID;
-        }
-        port->sched_hierarchy.groups_count[lvl] = 0;
-    }
-
-    port_queues_foreach(port, queue_cfg, ii) {
-        queue_cfg->sched_obj.scheduler_id = SAI_NULL_OBJECT_ID;
-    }
-
-    return SAI_STATUS_SUCCESS;
 }
 
 /**

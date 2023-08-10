@@ -268,84 +268,84 @@
                 <port-speed>131072</port-speed>
             </port-info>
             <port-info>
-                <local-port>21</local-port>
+                <local-port>5</local-port>
                 <width>1</width>
                 <module>36</module>
                 <breakout-modes>0</breakout-modes>
                 <port-speed>131072</port-speed>
             </port-info>
             <port-info>
-                <local-port>22</local-port>
+                <local-port>6</local-port>
                 <width>1</width>
                 <module>37</module>
                 <breakout-modes>0</breakout-modes>
                 <port-speed>131072</port-speed>
             </port-info>
             <port-info>
-                <local-port>23</local-port>
+                <local-port>17</local-port>
                 <width>1</width>
                 <module>38</module>
                 <breakout-modes>0</breakout-modes>
                 <port-speed>131072</port-speed>
             </port-info>
             <port-info>
-                <local-port>24</local-port>
+                <local-port>18</local-port>
                 <width>1</width>
                 <module>39</module>
                 <breakout-modes>0</breakout-modes>
                 <port-speed>131072</port-speed>
             </port-info>
             <port-info>
-                <local-port>25</local-port>
+                <local-port>19</local-port>
                 <width>1</width>
                 <module>40</module>
                 <breakout-modes>0</breakout-modes>
                 <port-speed>131072</port-speed>
             </port-info>
             <port-info>
-                <local-port>26</local-port>
+                <local-port>20</local-port>
                 <width>1</width>
                 <module>41</module>
                 <breakout-modes>0</breakout-modes>
                 <port-speed>131072</port-speed>
             </port-info>
             <port-info>
-                <local-port>27</local-port>
+                <local-port>21</local-port>
                 <width>1</width>
                 <module>42</module>
                 <breakout-modes>0</breakout-modes>
                 <port-speed>131072</port-speed>
             </port-info>
             <port-info>
-                <local-port>28</local-port>
+                <local-port>22</local-port>
                 <width>1</width>
                 <module>43</module>
                 <breakout-modes>0</breakout-modes>
                 <port-speed>131072</port-speed>
             </port-info>
             <port-info>
-                <local-port>29</local-port>
+                <local-port>23</local-port>
                 <width>1</width>
                 <module>44</module>
                 <breakout-modes>0</breakout-modes>
                 <port-speed>131072</port-speed>
             </port-info>
             <port-info>
-                <local-port>30</local-port>
+                <local-port>24</local-port>
                 <width>1</width>
                 <module>45</module>
                 <breakout-modes>0</breakout-modes>
                 <port-speed>131072</port-speed>
             </port-info>
             <port-info>
-                <local-port>31</local-port>
+                <local-port>25</local-port>
                 <width>1</width>
                 <module>46</module>
                 <breakout-modes>0</breakout-modes>
                 <port-speed>131072</port-speed>
             </port-info>
             <port-info>
-                <local-port>32</local-port>
+                <local-port>26</local-port>
                 <width>1</width>
                 <module>47</module>
                 <breakout-modes>0</breakout-modes>
@@ -359,21 +359,21 @@
                 <port-speed>11534336</port-speed>
             </port-info>
             <port-info>
-                <local-port>5</local-port>
+                <local-port>7</local-port>
                 <width>4</width>
                 <module>49</module>
                 <breakout-modes>3</breakout-modes>
                 <port-speed>11534336</port-speed>
             </port-info>
             <port-info>
-                <local-port>17</local-port>
+                <local-port>13</local-port>
                 <width>4</width>
                 <module>50</module>
                 <breakout-modes>3</breakout-modes>
                 <port-speed>11534336</port-speed>
             </port-info>
             <port-info>
-                <local-port>13</local-port>
+                <local-port>11</local-port>
                 <width>4</width>
                 <module>51</module>
                 <breakout-modes>3</breakout-modes>

@@ -30,10 +30,6 @@ static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNIN
 #define MAX_WEIGHT_VAL           11
 #define DEFAULT_WRED_PROBABILITY 100
 #define DEFAULT_WEIGHT_VAL       0
-#define DEFAULT_WRED_MIN_TH \
-    (g_resource_limits.total_buffer_space - g_resource_limits.shared_buff_buffer_unit_size + 1)
-#define DEFAULT_WRED_MAX_TH \
-    (g_resource_limits.total_buffer_space - g_resource_limits.shared_buff_buffer_unit_size + 1)
 
 static uint32_t sai_sx_weight_map[] = {1000, 500, 250, 125, 62, 31, 15, 8, 4, 2, 1, 0, 0, 0, 0, 0};
 
@@ -155,14 +151,8 @@ static const sai_vendor_attribute_entry_t wred_vendor_attribs[] = {
 static const mlnx_attr_enum_info_t        wred_enum_info[] = {
     [SAI_WRED_ATTR_ECN_MARK_MODE] = ATTR_ENUM_VALUES_ALL(),
 };
-static size_t wred_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
-{
-    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
-
-    return snprintf(str, max_len, "[wred_db[%u]]", mlnx_oid.id.u32);
-}
-const mlnx_obj_type_attrs_info_t mlnx_wred_obj_type_info =
-{ wred_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(wred_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), wred_info_print};
+const mlnx_obj_type_attrs_info_t          mlnx_wred_obj_type_info =
+{ wred_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(wred_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 
 /*
  * Routine Description:
@@ -355,9 +345,9 @@ static void tc_list_to_str(sx_cos_traffic_class_t *tc_list, uint32_t tc_count, c
 
 /* Util to convert SAI threshold in bytes to sx threshold in cells
  * Note SDK further rounds up to 64 cells g_resource_limits.cos_redecn_cell_multiplier */
-static uint32_t mlnx_wred_sai_threshold_to_sx(uint32_t sai_threshold)
+static uint16_t mlnx_wred_sai_threshold_to_sx(uint32_t sai_threshold)
 {
-    uint32_t new_threshold = ROUNDUP(sai_threshold, g_resource_limits.shared_buff_buffer_unit_size) /
+    uint16_t new_threshold = ROUNDUP(sai_threshold, g_resource_limits.shared_buff_buffer_unit_size) /
                              g_resource_limits.shared_buff_buffer_unit_size;
 
     if (ROUNDUP(sai_threshold, g_resource_limits.shared_buff_buffer_unit_size) != sai_threshold) {
@@ -892,67 +882,16 @@ static sai_status_t mlnx_wred_remove_profile(sai_object_id_t         wred_id,
     return status;
 }
 
-static sai_status_t mlnx_wred_redecn_create_default_profile(sai_object_id_t      wred_id,
-                                                            mlnx_wred_profile_t *wred_profile,
-                                                            long                 attr)
+static void wred_key_to_str(_In_ sai_object_id_t wred_id, _Out_ char *key_str)
 {
-    sx_cos_redecn_profile_attributes_t redecn_attr;
-    sx_status_t                        sx_status = SX_STATUS_SUCCESS;
-    sai_status_t                       status = SAI_STATUS_SUCCESS;
-    char                              *color;
-    sx_cos_redecn_profile_t           *profile;
+    uint32_t wred;
 
-    memset(&redecn_attr, 0, sizeof(redecn_attr));
-    redecn_attr.mode = SX_COS_REDECN_MODE_ABSOLUTE;
-    redecn_attr.high_drop_percent = DEFAULT_WRED_PROBABILITY;
-    redecn_attr.values.absolute_mode.min = mlnx_wred_sai_threshold_to_sx(DEFAULT_WRED_MIN_TH);
-    redecn_attr.values.absolute_mode.max = mlnx_wred_sai_threshold_to_sx(DEFAULT_WRED_MAX_TH);
-
-    switch (attr) {
-    case SAI_WRED_ATTR_GREEN_MIN_THRESHOLD:
-    case SAI_WRED_ATTR_GREEN_MAX_THRESHOLD:
-    case SAI_WRED_ATTR_GREEN_DROP_PROBABILITY:
-    case SAI_WRED_ATTR_GREEN_ENABLE:
-        profile = &wred_profile->green_profile_id;
-        color = "green";
-        break;
-
-    case SAI_WRED_ATTR_YELLOW_MIN_THRESHOLD:
-    case SAI_WRED_ATTR_YELLOW_MAX_THRESHOLD:
-    case SAI_WRED_ATTR_YELLOW_DROP_PROBABILITY:
-    case SAI_WRED_ATTR_YELLOW_ENABLE:
-        profile = &wred_profile->yellow_profile_id;
-        color = "yellow";
-        break;
-
-    case SAI_WRED_ATTR_RED_MIN_THRESHOLD:
-    case SAI_WRED_ATTR_RED_MAX_THRESHOLD:
-    case SAI_WRED_ATTR_RED_DROP_PROBABILITY:
-    case SAI_WRED_ATTR_RED_ENABLE:
-        profile = &wred_profile->red_profile_id;
-        color = "red";
-        break;
-
-    default:
-        assert(0);
+    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(wred_id, SAI_OBJECT_TYPE_WRED, &wred, NULL)) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "invalid wred profile id");
+    } else {
+        snprintf(key_str, MAX_KEY_STR_LEN, "wred profile id  %u", wred);
     }
-
-    sx_status = sx_api_cos_redecn_profile_set(gh_sdk, SX_ACCESS_CMD_ADD, &redecn_attr, profile);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to create redecn %s profile - %s\n", color, SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    status = mlnx_wred_db_set(wred_id, wred_profile);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to update WRED %" PRIx64 "profile\n", wred_id);
-        sx_api_cos_redecn_profile_set(gh_sdk, SX_ACCESS_CMD_DELETE,
-                                      &redecn_attr, profile);
-    }
-
-    return status;
 }
-
 /*
  * Get WRED profile attributes */
 static sai_status_t mlnx_wred_attr_getter(_In_ const sai_object_key_t   *key,
@@ -975,7 +914,7 @@ static sai_status_t mlnx_wred_attr_getter(_In_ const sai_object_key_t   *key,
 
     SX_LOG_ENTER();
 
-    oid_to_str(wred_id, key_str);
+    wred_key_to_str(wred_id, key_str);
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_wred_db_get(wred_id, &wred_profile))) {
         SX_LOG_ERR("Failed to get attr, %s not exists\n", key_str);
@@ -1077,19 +1016,17 @@ static sai_status_t mlnx_wred_attr_setter(_In_ const sai_object_key_t      *key,
     sai_status_t                       status = SAI_STATUS_SUCCESS;
     long                               attr = (long)arg;
     sx_cos_redecn_flow_type_e          flows[2] = {0};
-    bool                               need_create_profile = false;
 
     memset(&redecn_attr, 0, sizeof(redecn_attr));
     memset(&wred_profile, 0, sizeof(wred_profile));
 
     SX_LOG_ENTER();
 
-    oid_to_str(wred_id, key_str);
+    wred_key_to_str(wred_id, key_str);
 
-    status = mlnx_wred_db_get(wred_id, &wred_profile);
-    if (SAI_ERR(status)) {
+    if (SAI_STATUS_SUCCESS != (sx_status = mlnx_wred_db_get(wred_id, &wred_profile))) {
         SX_LOG_ERR("Failed to get attr, %s not exists\n", key_str);
-        goto out;
+        return sx_status;
     }
 
     switch (attr) {
@@ -1119,24 +1056,18 @@ static sai_status_t mlnx_wred_attr_setter(_In_ const sai_object_key_t      *key,
 
     default:
         SX_LOG_ERR("Failed to set profile attr %lu : invalid attribute\n", attr);
-        status = SAI_STATUS_INVALID_PARAMETER;
-        goto out;
+        return SAI_STATUS_INVALID_PARAMETER;
     }
 
     if (SAI_INVALID_PROFILE_ID == *profile) {
-        need_create_profile = true;
-        status = mlnx_wred_redecn_create_default_profile(wred_id, &wred_profile, attr);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to create default profile for %s\n", key_str);
-            goto out;
-        }
+        SX_LOG_ERR("Failed to set profile attr %lu - profile is not configured\n", attr);
+        return SAI_STATUS_FAILURE;
     }
 
     sx_status = sx_api_cos_redecn_profile_get(gh_sdk, *profile, &redecn_attr);
-    if (SX_ERR(sx_status)) {
+    if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to get profile attr - %s\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
+        return sdk_to_sai(sx_status);
     }
 
     switch (attr) {
@@ -1157,45 +1088,45 @@ static sai_status_t mlnx_wred_attr_setter(_In_ const sai_object_key_t      *key,
     case SAI_WRED_ATTR_RED_DROP_PROBABILITY:
         if (value->u32 > 100) {
             SX_LOG_ERR("Failed to set profile attr %lu - invalid range for drop probability\n", attr);
-            status = SAI_STATUS_INVALID_PARAMETER;
-            goto out;
+            return SAI_STATUS_INVALID_PARAMETER;
         }
         redecn_attr.high_drop_percent = value->u32;
         break;
     }
 
-    if (!need_create_profile) {
-        /* unbind from all ports */
-        status = mlnx_wred_bind_sxwred_to_all_port(wred_id, *profile, flows[0], SX_ACCESS_CMD_UNBIND);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-        status = mlnx_wred_bind_sxwred_to_all_port(wred_id, *profile, flows[1], SX_ACCESS_CMD_UNBIND);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
+    /* unbind from all ports */
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_wred_bind_sxwred_to_all_port(wred_id, *profile, flows[0],
+                                                    SX_ACCESS_CMD_UNBIND))) {
+        return status;
+    }
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_wred_bind_sxwred_to_all_port(wred_id, *profile, flows[1],
+                                                    SX_ACCESS_CMD_UNBIND))) {
+        return status;
     }
 
-    sx_status = sx_api_cos_redecn_profile_set(gh_sdk, SX_ACCESS_CMD_EDIT, &redecn_attr, profile);
-    if (SX_ERR(sx_status)) {
+
+    sx_status = sx_api_cos_redecn_profile_set(gh_sdk, SX_ACCESS_CMD_EDIT,
+                                              &redecn_attr, profile);
+    if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to set profile attr - %s\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
+        return sdk_to_sai(sx_status);
     }
 
     /* bind profile back to all ports */
-    status = mlnx_wred_bind_sxwred_to_all_port(wred_id, *profile, flows[0], SX_ACCESS_CMD_BIND);
-    if (SAI_ERR(status)) {
-        goto out;
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_wred_bind_sxwred_to_all_port(wred_id, *profile, flows[0],
+                                                    SX_ACCESS_CMD_BIND))) {
+        return status;
     }
-    status = mlnx_wred_bind_sxwred_to_all_port(wred_id, *profile, flows[1], SX_ACCESS_CMD_BIND);
-    if (SAI_ERR(status)) {
-        goto out;
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_wred_bind_sxwred_to_all_port(wred_id, *profile, flows[1],
+                                                    SX_ACCESS_CMD_BIND))) {
+        return status;
     }
 
-out:
-    SX_LOG_EXIT();
-    return status;
+    return SAI_STATUS_SUCCESS;
 }
 
 /* Set WRED profile attributes */
@@ -1211,23 +1142,20 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
     bool                     wred_enabled;
     sai_status_t             status = SAI_STATUS_SUCCESS;
     long                     attr = (long)arg;
-    bool                     need_create_profile = false;
 
     memset(&wred_profile, 0, sizeof(wred_profile));
 
     SX_LOG_ENTER();
 
-    oid_to_str(wred_id, key_str);
+    wred_key_to_str(wred_id, key_str);
 
-    status = mlnx_wred_db_get(wred_id, &wred_profile);
-    if (SAI_ERR(status)) {
+    if (SAI_STATUS_SUCCESS != (status = mlnx_wred_db_get(wred_id, &wred_profile))) {
         SX_LOG_ERR("Failed to get attr, %s not exists\n", key_str);
-        goto out;
+        return status;
     }
 
     if (!value->booldata && !wred_profile.wred_enabled) {
-        status = SAI_STATUS_SUCCESS;
-        goto out;
+        return SAI_STATUS_SUCCESS;
     }
 
     wred_enabled = wred_profile.wred_enabled;
@@ -1240,21 +1168,20 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
                     if ((wred_profile.yellow_profile_id != SAI_INVALID_PROFILE_ID) ||
                         (wred_profile.red_profile_id != SAI_INVALID_PROFILE_ID)) {
                         SX_LOG_ERR("Can't set Green WRED enable when Yellow or Red ECN mark mode enabled\n");
-                        status = SAI_STATUS_INVALID_PARAMETER;
-                        goto out;
+                        return SAI_STATUS_INVALID_PARAMETER;
                     }
                 }
             } else {
                 if (wred_profile.green_profile_id != SAI_INVALID_PROFILE_ID) {
                     SX_LOG_ERR("Can't set Green WRED disable when Green ECN mark mode enabled\n");
-                    status = SAI_STATUS_INVALID_PARAMETER;
-                    goto out;
+                    return SAI_STATUS_INVALID_PARAMETER;
                 }
             }
         }
         if (value->booldata) {
             if (wred_profile.green_profile_id == SAI_INVALID_PROFILE_ID) {
-                need_create_profile = true;
+                SX_LOG_ERR("Can't set WRED enable - no profile created\n");
+                return SAI_STATUS_INVALID_PARAMETER;
             }
 
             wred_enabled = value->booldata;
@@ -1271,21 +1198,20 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
                     if ((wred_profile.green_profile_id != SAI_INVALID_PROFILE_ID) ||
                         (wred_profile.red_profile_id != SAI_INVALID_PROFILE_ID)) {
                         SX_LOG_ERR("Can't set Yellow WRED enable when Green or Red ECN mark mode enabled\n");
-                        status = SAI_STATUS_INVALID_PARAMETER;
-                        goto out;
+                        return SAI_STATUS_INVALID_PARAMETER;
                     }
                 }
             } else {
                 if (wred_profile.yellow_profile_id != SAI_INVALID_PROFILE_ID) {
                     SX_LOG_ERR("Can't set Yellow WRED disable when Yellow ECN mark mode enabled\n");
-                    status = SAI_STATUS_INVALID_PARAMETER;
-                    goto out;
+                    return SAI_STATUS_INVALID_PARAMETER;
                 }
             }
         }
         if (value->booldata) {
             if (wred_profile.yellow_profile_id == SAI_INVALID_PROFILE_ID) {
-                need_create_profile = true;
+                SX_LOG_ERR("Can't set WRED enable - no profile created\n");
+                return SAI_STATUS_INVALID_PARAMETER;
             }
 
             wred_enabled = value->booldata;
@@ -1302,21 +1228,20 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
                     if ((wred_profile.green_profile_id != SAI_INVALID_PROFILE_ID) ||
                         (wred_profile.yellow_profile_id != SAI_INVALID_PROFILE_ID)) {
                         SX_LOG_ERR("Can't set Red WRED enable when Green or Yellow ECN mark mode enabled\n");
-                        status = SAI_STATUS_INVALID_PARAMETER;
-                        goto out;
+                        return SAI_STATUS_INVALID_PARAMETER;
                     }
                 }
             } else {
                 if (wred_profile.red_profile_id != SAI_INVALID_PROFILE_ID) {
                     SX_LOG_ERR("Can't set Red WRED disable when Red ECN mark mode enabled\n");
-                    status = SAI_STATUS_INVALID_PARAMETER;
-                    goto out;
+                    return SAI_STATUS_INVALID_PARAMETER;
                 }
             }
         }
         if (value->booldata) {
             if (wred_profile.red_profile_id == SAI_INVALID_PROFILE_ID) {
-                need_create_profile = true;
+                SX_LOG_ERR("Can't set WRED enable - no profile created\n");
+                return SAI_STATUS_INVALID_PARAMETER;
             }
 
             wred_enabled = value->booldata;
@@ -1329,48 +1254,35 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
     default:
         SX_LOG_ERR("Failed to set profile attr %lu - invalid attribute\n", attr);
         status = SAI_STATUS_INVALID_PARAMETER;
-        goto out;
     }
 
-    if (need_create_profile) {
-        status = mlnx_wred_redecn_create_default_profile(wred_id, &wred_profile, attr);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to create default profile for %s\n", key_str);
-            goto out;
-        }
-
-        status = mlnx_wred_bind_saiwred_to_all_port(wred_id, SX_ACCESS_CMD_BIND);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to set default profile for %s\n", key_str);
-            goto out;
-        }
-    }
     /* Do re-bind WRED profiles only if ECN enabled */
     if (wred_profile.ecn_enabled && (wred_enabled != wred_profile.wred_enabled)) {
         status = mlnx_wred_bind_saiwred_to_all_port(wred_id, SX_ACCESS_CMD_UNBIND);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to set ecn for %s\n", key_str);
-            goto out;
+            return status;
         }
 
         wred_profile.wred_enabled = wred_enabled;
         status = mlnx_wred_db_set(wred_id, &wred_profile);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to set ecn for %s\n", key_str);
-            goto out;
+            return status;
         }
 
         status = mlnx_wred_bind_saiwred_to_all_port(wred_id, SX_ACCESS_CMD_BIND);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to set ecn for %s\n", key_str);
+            return status;
         }
 
-        goto out;
+        return status;
     }
 
     if ((sx_profile_p) && (SAI_INVALID_PROFILE_ID != *sx_profile_p)) {
-        status = mlnx_wred_remove_profile(wred_id, *sx_profile_p, color);
-        if (SAI_OK(status)) {
+        if (SAI_STATUS_SUCCESS ==
+            (status = mlnx_wred_remove_profile(wred_id, *sx_profile_p, color))) {
             *sx_profile_p = SAI_INVALID_PROFILE_ID;
 
             if ((wred_profile.green_profile_id != SAI_INVALID_PROFILE_ID) &&
@@ -1378,9 +1290,7 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
                 (wred_profile.red_profile_id != SAI_INVALID_PROFILE_ID)) {
                 wred_profile.wred_enabled = false;
             }
-
-            status = mlnx_wred_db_set(wred_id, &wred_profile);
-            if (SAI_ERR(status)) {
+            if (SAI_STATUS_SUCCESS != (status = mlnx_wred_db_set(wred_id, &wred_profile))) {
                 SX_LOG_ERR("Failed to update WRED db for %s\n", key_str);
             }
         } else {
@@ -1388,7 +1298,6 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
         }
     }
 
-out:
     SX_LOG_EXIT();
     return status;
 }
@@ -1536,7 +1445,7 @@ static sai_status_t mlnx_wred_weight_set(_In_ const sai_object_key_t      *key,
 
     SX_LOG_ENTER();
 
-    oid_to_str(wred_id, key_str);
+    wred_key_to_str(wred_id, key_str);
     if (SAI_STATUS_SUCCESS != (status = mlnx_wred_db_get(wred_id, &wred_profile))) {
         SX_LOG_ERR("Failed to set weight, %s not exists\n", key_str);
         return status;
@@ -1569,7 +1478,7 @@ static sai_status_t mlnx_wred_weight_get(_In_ const sai_object_key_t   *key,
 
     SX_LOG_ENTER();
 
-    oid_to_str(wred_id, key_str);
+    wred_key_to_str(wred_id, key_str);
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_wred_db_get(wred_id, &wred_profile))) {
         SX_LOG_ERR("Failed to get weight, %s not exists\n", key_str);
@@ -1608,7 +1517,7 @@ static sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
 
     SX_LOG_ENTER();
 
-    oid_to_str(wred_id, key_str);
+    wred_key_to_str(wred_id, key_str);
 
     status = mlnx_wred_db_get(wred_id, &wred_profile);
     if (SAI_ERR(status)) {
@@ -1826,7 +1735,7 @@ static sai_status_t mlnx_wred_ecn_get(_In_ const sai_object_key_t   *key,
 
     SX_LOG_ENTER();
 
-    oid_to_str(wred_id, key_str);
+    wred_key_to_str(wred_id, key_str);
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_wred_db_get(wred_id, &wred_profile))) {
         SX_LOG_ERR("Failed to get ecn, %s not exists\n", key_str);
@@ -1887,8 +1796,23 @@ sai_status_t mlnx_wred_log_set(sx_verbosity_level_t level)
 static sai_status_t mlnx_set_wred_attribute(_In_ sai_object_id_t wred_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = wred_id };
+    uint32_t               wred = 0;
+    char                   key_str[MAX_KEY_STR_LEN];
+    sai_status_t           status;
 
-    return sai_set_attribute(&key, SAI_OBJECT_TYPE_WRED, attr);
+    SX_LOG_ENTER();
+
+    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(wred_id, SAI_OBJECT_TYPE_WRED, &wred, NULL)) {
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    wred_key_to_str(wred_id, key_str);
+
+    sai_db_write_lock();
+    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_WRED, wred_vendor_attribs, attr);
+    sai_db_unlock();
+
+    return status;
 }
 
 
@@ -1910,8 +1834,23 @@ static sai_status_t mlnx_get_wred_attribute(_In_ sai_object_id_t     wred_id,
                                             _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = wred_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+    uint32_t               wred = 0;
+    sai_status_t           status;
 
-    return sai_get_attributes(&key, SAI_OBJECT_TYPE_WRED, attr_count, attr_list);
+    SX_LOG_ENTER();
+
+    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(wred_id, SAI_OBJECT_TYPE_WRED, &wred, NULL)) {
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    wred_key_to_str(wred_id, key_str);
+
+    sai_db_read_lock();
+    status = sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_WRED, wred_vendor_attribs, attr_count, attr_list);
+    sai_db_unlock();
+
+    return status;
 }
 
 /* Remove all profiles from wred_profile structure if they exist
@@ -1976,6 +1915,8 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
     mlnx_wred_profile_t                wred_profile;
     sai_status_t                       status = SAI_STATUS_SUCCESS;
     sx_status_t                        sx_status = SX_STATUS_SUCCESS;
+    char                               list_str[MAX_LIST_VALUE_STR_LEN] = {0};
+    char                               key_str[MAX_KEY_STR_LEN] = {0};
 
     memset(&redecn_attr_green, 0, sizeof(redecn_attr_green));
     memset(&redecn_attr_yellow, 0, sizeof(redecn_attr_yellow));
@@ -1988,11 +1929,20 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
 
     SX_LOG_ENTER();
 
-    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_WRED, wred_id);
+    if (NULL == wred_id) {
+        SX_LOG_ERR("NULL wred id param\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_WRED, wred_vendor_attribs,
+                                    SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed attributes check\n");
         return status;
     }
-    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_WRED);
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_WRED, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create wred profile, %s\n", list_str);
 
     /* WRED Green - enable, drop prob */
     status = find_attrib_in_list(attr_count, attr_list, SAI_WRED_ATTR_GREEN_ENABLE, &green_en_attr, &index);
@@ -2273,7 +2223,8 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
         /* clean up previously created profiles */
         mlnx_wred_cleanup_profiles(&wred_profile);
     } else {
-        MLNX_LOG_OID_CREATED(*wred_id);
+        wred_key_to_str(*wred_id, key_str);
+        SX_LOG_NTC("Created %s\n", key_str);
         SX_LOG_DBG("Green profile %d, yellow %d, red %d \n",
                    wred_profile.green_profile_id,
                    wred_profile.yellow_profile_id,
@@ -2311,12 +2262,11 @@ static sai_status_t mlnx_remove_wred_profile(_In_ sai_object_id_t wred_id)
 
     SX_LOG_ENTER();
 
-    oid_to_str(wred_id, key_str);
-    SX_LOG_NTC("Remove %s\n", key_str);
-
     if (SAI_STATUS_SUCCESS != mlnx_object_to_type(wred_id, SAI_OBJECT_TYPE_WRED, &wred, NULL)) {
         return SAI_STATUS_INVALID_PARAMETER;
     }
+
+    wred_key_to_str(wred_id, key_str);
 
     sai_db_write_lock();
 
@@ -2354,6 +2304,8 @@ static sai_status_t mlnx_remove_wred_profile(_In_ sai_object_id_t wred_id)
             goto out;
         }
     }
+
+    SX_LOG_NTC("Removed %s\n", key_str);
 
     mlnx_wred_db_remove(wred_id);
 

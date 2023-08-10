@@ -39,6 +39,11 @@
 #define SAI_MAX_HARDWARE_ID_LEN                 255
 
 /**
+ * @brief Defines maximum node description
+ */
+#define SAI_NODE_DESCRIPTION_SIZE               16
+
+/**
  * @brief Maximum Firmware Path Name Length
  */
 #define SAI_MAX_FIRMWARE_PATH_NAME_LEN          PATH_MAX
@@ -131,10 +136,7 @@ typedef enum _sai_packet_action_t
     SAI_PACKET_ACTION_DENY,
 
     /** This is a combination of SAI packet action COPY_CANCEL and FORWARD */
-    SAI_PACKET_ACTION_TRANSIT,
-
-    /** Do not drop the packet. */
-    SAI_PACKET_ACTION_DONOTDROP
+    SAI_PACKET_ACTION_TRANSIT
 
 } sai_packet_action_t;
 
@@ -309,6 +311,9 @@ typedef enum _sai_switch_type_t
 
     /** Switch type is Fabric switch device */
     SAI_SWITCH_TYPE_FABRIC,
+
+    /** Switch type is IBV0 switch device */
+    SAI_SWITCH_TYPE_IBV0,
 
 } sai_switch_type_t;
 
@@ -1829,6 +1834,17 @@ typedef enum _sai_switch_attr_t
     SAI_SWITCH_ATTR_PORT_STATE_CHANGE_NOTIFY,
 
     /**
+     * @brief Port signal degrade notification callback function passed to the adapter.
+     *
+     * Use sai_port_signal_degrade_notification_fn as notification function.
+     *
+     * @type sai_pointer_t sai_port_signal_degrade_notification_fn
+     * @flags CREATE_AND_SET
+     * @default NULL
+     */
+    SAI_SWITCH_ATTR_PORT_SIGNAL_DEGRADE_NOTIFY,
+
+    /**
      * @brief Received packet event notification callback function passed to the adapter.
      *
      * Use sai_packet_event_notification_fn as notification function.
@@ -2407,7 +2423,7 @@ typedef enum _sai_switch_attr_t
      *
      * @type sai_switch_type_t
      * @flags CREATE_ONLY
-     * @default SAI_SWITCH_TYPE_NPU
+     * @default SAI_SWITCH_TYPE_IBV0
      */
     SAI_SWITCH_ATTR_TYPE,
 
@@ -2617,6 +2633,75 @@ typedef enum _sai_switch_attr_t
     SAI_SWITCH_ATTR_AVAILABLE_DOUBLE_NAPT_ENTRY,
 
     /**
+     * @brief Number of switch ids of the device.
+     *
+     * @type sai_uint32_t
+     * @flags CREATE_ONLY
+     * @default 1
+     */
+    SAI_SWITCH_ATTR_CUSTOM_INFINIBAND_NUM_OF_SWIDS,
+
+    /**
+     * @brief Flag of adaptive routing enable.
+     * its part of the profile configuration for SDK.
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default true
+     */
+    SAI_SWITCH_ATTR_CUSTOM_INFINIBAND_ADAPTIVE_ROUTING,
+
+    /**
+     * @brief Number of AR groups.
+     * its part of the profile configuration for SDK.
+     *
+     * @type sai_uint32_t
+     * @flags CREATE_ONLY
+     * @default 2048
+     */
+    SAI_SWITCH_ATTR_CUSTOM_INFINIBAND_AR_GROUPS,
+
+    /**
+     * @brief Flag of routing enable.
+     * its part of the profile configuration for SDK.
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_SWITCH_ATTR_CUSTOM_INFINIBAND_IB_ROUTING,
+
+    /**
+     * @brief Flag of split mode enable.
+     * its part of the profile configuration for SDK.
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_SWITCH_ATTR_CUSTOM_INFINIBAND_BREAKOUT_MODE,
+
+    /**
+     * @brief Name [char[SX_IB_NODE_DESCRIPTION_LEN]]
+     * Node description.
+     *
+     * @type sai_u8_list_t
+     * @flags CREATE_AND_SET
+     * @default empty
+     * @allowrepeat true
+     */
+    SAI_SWITCH_ATTR_CUSTOM_INFINIBAND_NODE_DESCRIPTION,
+
+    /**
+     * @brief System Image GUID value
+     *
+     * @type sai_uint64_t
+     * @flags CREATE_ONLY
+     * @default 0
+     */
+    SAI_SWITCH_ATTR_CUSTOM_INFINIBAND_SYSTEM_IMAGE_GUID,
+
+    /**
      * @brief Slave MDIO Address list
      *
      * Configure list of slave MDIO addresses for firmware download in Broadcast mode.
@@ -2775,6 +2860,26 @@ typedef enum _sai_switch_attr_t
      * @default 64
      */
     SAI_SWITCH_ATTR_ECMP_MEMBER_COUNT,
+
+    /**
+     * @brief Port module event (plugged / unplugged) notification callback function passed to the adapter.
+     *
+     * Use sai_port_module_plug_event_notification_fn as notification function.
+     *
+     * @type sai_pointer_t sai_port_module_plug_event_notification_fn
+     * @flags CREATE_AND_SET
+     * @default NULL
+     */
+    SAI_SWITCH_ATTR_PORT_MODULE_PLUG_EVENT_NOTIFY,
+
+    /**
+     * @brief Set switch operation mode to IB/NVLink
+     *
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default false
+     */
+    SAI_SWITCH_ATTR_OPERATION_MODE_IB,
 
     /**
      * @brief End of attributes
@@ -3097,46 +3202,6 @@ typedef sai_status_t (*sai_switch_mdio_write_fn)(
         _In_ const uint32_t *reg_val);
 
 /**
- * @brief Switch MDIO clause 22 read API
- *
- * Provides clause 22 read access API for devices connected to MDIO from NPU SAI.
- *
- * @objects switch_id SAI_OBJECT_TYPE_SWITCH
- *
- * @param[in] switch_id Switch Id
- * @param[in] device_addr Device address(PHY/lane/port MDIO address)
- * @param[in] start_reg_addr Starting register address to read
- * @param[in] number_of_registers Number of consecutive registers to read
- * @param[out] reg_val Register read values
- */
-typedef sai_status_t (*sai_switch_mdio_cl22_read_fn)(
-        _In_ sai_object_id_t switch_id,
-        _In_ uint32_t device_addr,
-        _In_ uint32_t start_reg_addr,
-        _In_ uint32_t number_of_registers,
-        _Out_ uint32_t *reg_val);
-
-/**
- * @brief Switch MDIO clause write API
- *
- * Provides clause 22 write access API for devices connected to MDIO from NPU SAI.
- *
- * @objects switch_id SAI_OBJECT_TYPE_SWITCH
- *
- * @param[in] switch_id Switch Id
- * @param[in] device_addr Device address(PHY/lane/port MDIO address)
- * @param[in] start_reg_addr Starting register address to write
- * @param[in] number_of_registers Number of consecutive registers to write
- * @param[in] reg_val Register write values
- */
-typedef sai_status_t (*sai_switch_mdio_cl22_write_fn)(
-        _In_ sai_object_id_t switch_id,
-        _In_ uint32_t device_addr,
-        _In_ uint32_t start_reg_addr,
-        _In_ uint32_t number_of_registers,
-        _In_ const uint32_t *reg_val);
-
-/**
  * @brief Create switch
  *
  * SDK initialization/connect to SDK. After the call the capability attributes should be
@@ -3312,8 +3377,6 @@ typedef struct _sai_switch_api_t
     sai_remove_switch_tunnel_fn            remove_switch_tunnel;
     sai_set_switch_tunnel_attribute_fn     set_switch_tunnel_attribute;
     sai_get_switch_tunnel_attribute_fn     get_switch_tunnel_attribute;
-    sai_switch_mdio_cl22_read_fn           switch_mdio_cl22_read;
-    sai_switch_mdio_cl22_write_fn          switch_mdio_cl22_write;
 
 } sai_switch_api_t;
 

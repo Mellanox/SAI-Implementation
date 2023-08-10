@@ -31,6 +31,9 @@
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 
 /*..... Function Prototypes ..................*/
+static void udf_key_to_str(_In_ sai_object_id_t   object_id,
+                           _In_ sai_object_type_t object_type,
+                           _Out_ char            *key_str);
 static sai_status_t mlnx_udf_db_size_get(_In_ sai_object_type_t udf_type, _Out_ uint32_t         *size);
 static bool mlnx_udf_db_is_created(_In_ uint32_t index, _In_ sai_object_type_t udf_type);
 static sai_status_t mlnx_udf_db_find_free_index(_In_ sai_object_type_t udf_type, _Out_ uint32_t          *index);
@@ -197,14 +200,8 @@ static const mlnx_attr_enum_info_t        udf_enum_info[] = {
         SAI_UDF_BASE_L2,
         SAI_UDF_BASE_L3)
 };
-static size_t udf_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
-{
-    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
-
-    return snprintf(str, max_len, "[udf_db_udf[%u]]", mlnx_oid.id.u32);
-}
-const mlnx_obj_type_attrs_info_t mlnx_udf_obj_type_info =
-{ udf_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(udf_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), udf_info_print};
+const mlnx_obj_type_attrs_info_t          mlnx_udf_obj_type_info =
+{ udf_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(udf_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 /* UDF Match vendor attributes */
 static const sai_vendor_attribute_entry_t udf_match_vendor_attribs[] = {
     { SAI_UDF_MATCH_ATTR_L2_TYPE,
@@ -233,14 +230,8 @@ static const sai_vendor_attribute_entry_t udf_match_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static size_t udf_match_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
-{
-    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
-
-    return snprintf(str, max_len, "[udf_db_match[%u]]", mlnx_oid.id.u32);
-}
-const mlnx_obj_type_attrs_info_t mlnx_udf_match_obj_type_info =
-{ udf_match_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY(), udf_match_info_print};
+const mlnx_obj_type_attrs_info_t          mlnx_udf_match_obj_type_info =
+{ udf_match_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
 /* UDF Group vendor attributes */
 static const sai_vendor_attribute_entry_t udf_group_vendor_attribs[] = {
     { SAI_UDF_GROUP_ATTR_UDF_LIST,
@@ -268,15 +259,20 @@ static const mlnx_attr_enum_info_t        udf_group_enum_info[] = {
     [SAI_UDF_GROUP_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_UDF_GROUP_TYPE_GENERIC)
 };
-static size_t udf_group_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+const mlnx_obj_type_attrs_info_t          mlnx_udf_group_obj_type_info =
+{ udf_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(udf_group_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
+static void udf_key_to_str(_In_ sai_object_id_t   object_id,
+                           _In_ sai_object_type_t object_type,
+                           _Out_ char            *key_str)
 {
-    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+    uint32_t data;
 
-    return snprintf(str, max_len, "[udf_db_group_ptr[%u]]", mlnx_oid.id.u32);
+    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(object_id, object_type, &data, NULL)) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "invalid %s", SAI_TYPE_STR(object_type));
+    } else {
+        snprintf(key_str, MAX_KEY_STR_LEN, "%s %u", SAI_TYPE_STR(object_type), data);
+    }
 }
-const mlnx_obj_type_attrs_info_t mlnx_udf_group_obj_type_info =
-{ udf_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(udf_group_enum_info), OBJ_STAT_CAP_INFO_EMPTY(),
-  udf_group_info_print};
 
 static sai_status_t mlnx_udf_db_size_get(_In_ sai_object_type_t udf_type, _Out_ uint32_t         *size)
 {
@@ -1567,15 +1563,31 @@ static sai_status_t mlnx_sai_create_udf(_Out_ sai_object_id_t      *udf_id,
     sai_status_t                 status;
     const sai_attribute_value_t *attr_match_id, *attr_group_id, *attr_base, *attr_offset, *attr_hash_mask;
     sai_udf_base_t               udf_base;
+    char                         list_str[MAX_LIST_VALUE_STR_LEN] = {0};
+    char                         key_str[MAX_KEY_STR_LEN] = {0};
     uint32_t                     group_db_index, match_db_index, udf_offset, udf_db_index, attr_index;
 
     SX_LOG_ENTER();
 
-    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_UDF, udf_id);
-    if (SAI_ERR(status)) {
-        return status;
+    if (NULL == udf_id) {
+        SX_LOG_ERR("NULL udf id param.\n");
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
     }
-    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_UDF);
+
+    status = check_attribs_metadata(attr_count,
+                                    attr_list,
+                                    SAI_OBJECT_TYPE_UDF,
+                                    udf_vendor_attribs,
+                                    SAI_COMMON_API_CREATE);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed attribs check.\n");
+        goto out;
+    }
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_UDF, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create udf object.\n");
+    SX_LOG_NTC("Attribs %s.\n", list_str);
 
     sai_db_write_lock();
 
@@ -1658,10 +1670,12 @@ static sai_status_t mlnx_sai_create_udf(_Out_ sai_object_id_t      *udf_id,
 
     udf_db_udf(udf_db_index).sai_object = *udf_id;
 
-    MLNX_LOG_OID_CREATED(*udf_id);
+    udf_key_to_str(*udf_id, SAI_OBJECT_TYPE_UDF, key_str);
+    SX_LOG_NTC("Created %s. Object id [%lx]\n", key_str, *udf_id);
 
 out_unlock:
     sai_db_unlock();
+out:
     SX_LOG_EXIT();
     return status;
 }
@@ -1677,10 +1691,12 @@ static sai_status_t mlnx_sai_remove_udf(_In_ sai_object_id_t udf_id)
 {
     sai_status_t status = SAI_STATUS_SUCCESS;
     uint32_t     udf_db_index;
+    char         key_str[MAX_KEY_STR_LEN] = {0};
 
     SX_LOG_ENTER();
 
-    MLNX_LOG_OID_REMOVE(udf_id);
+    udf_key_to_str(udf_id, SAI_OBJECT_TYPE_UDF, key_str);
+    SX_LOG_NTC("Remove %s.\n", key_str);
 
     sai_db_write_lock();
 
@@ -1727,8 +1743,12 @@ out:
 static sai_status_t mlnx_sai_set_udf_attribute(_In_ sai_object_id_t udf_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = udf_id };
+    char                   key_str[MAX_KEY_STR_LEN];
 
-    return sai_set_attribute(&key, SAI_OBJECT_TYPE_UDF, attr);
+    SX_LOG_ENTER();
+
+    udf_key_to_str(udf_id, SAI_OBJECT_TYPE_UDF, key_str);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_UDF, udf_vendor_attribs, attr);
 }
 
 /**
@@ -1745,8 +1765,12 @@ static sai_status_t mlnx_sai_get_udf_attribute(_In_ sai_object_id_t     udf_id,
                                                _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = udf_id };
+    char                   key_str[MAX_KEY_STR_LEN];
 
-    return sai_get_attributes(&key, SAI_OBJECT_TYPE_UDF, attr_count, attr_list);
+    SX_LOG_ENTER();
+
+    udf_key_to_str(udf_id, SAI_OBJECT_TYPE_UDF, key_str);
+    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_UDF, udf_vendor_attribs, attr_count, attr_list);
 }
 
 /**
@@ -1767,16 +1791,29 @@ static sai_status_t mlnx_sai_create_udf_match(_Out_ sai_object_id_t      *udf_ma
     sai_status_t                 status;
     const sai_attribute_value_t *l2_type_attr, *l3_type_attr, *gre_type_attr, *prio_attr;
     mlnx_udf_match_type_t        match_type;
+    char                         list_str[MAX_LIST_VALUE_STR_LEN] = {0};
+    char                         key_str[MAX_KEY_STR_LEN] = {0};
     uint32_t                     attr_index, db_index;
     uint8_t                      match_prio;
 
     SX_LOG_ENTER();
 
-    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_UDF_MATCH, udf_match_id);
-    if (SAI_ERR(status)) {
+    if (NULL == udf_match_id) {
+        SX_LOG_ERR("NULL udf match id param.\n");
+        status = SAI_STATUS_INVALID_PARAMETER;
         goto out;
     }
-    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_UDF_MATCH);
+
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_UDF_MATCH, udf_match_vendor_attribs,
+                                    SAI_COMMON_API_CREATE);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed attribs check.\n");
+        goto out;
+    }
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_UDF_MATCH, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create udf match object.\n");
+    SX_LOG_NTC("Attribs %s.\n", list_str);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_UDF_MATCH_ATTR_GRE_TYPE,
                                  &gre_type_attr, &attr_index);
@@ -1837,7 +1874,8 @@ static sai_status_t mlnx_sai_create_udf_match(_Out_ sai_object_id_t      *udf_ma
 
     udf_db_match(db_index).sai_object = *udf_match_id;
 
-    MLNX_LOG_OID_CREATED(*udf_match_id);
+    udf_key_to_str(*udf_match_id, SAI_OBJECT_TYPE_UDF_MATCH, key_str);
+    SX_LOG_NTC("Created %s. Object id [%lx]\n", key_str, *udf_match_id);
 
 out_unlock:
     sai_db_unlock();
@@ -1857,10 +1895,12 @@ static sai_status_t mlnx_sai_remove_udf_match(_In_ sai_object_id_t udf_match_id)
 {
     sai_status_t status = SAI_STATUS_SUCCESS;
     uint32_t     match_db_index;
+    char         key_str[MAX_KEY_STR_LEN] = {0};
 
     SX_LOG_ENTER();
 
-    MLNX_LOG_OID_REMOVE(udf_match_id);
+    udf_key_to_str(udf_match_id, SAI_OBJECT_TYPE_UDF_MATCH, key_str);
+    SX_LOG_NTC("Remove %s.\n", key_str);
 
     sai_db_write_lock();
 
@@ -1897,8 +1937,12 @@ static sai_status_t mlnx_sai_set_udf_match_attribute(_In_ sai_object_id_t       
                                                      _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = udf_match_id };
+    char                   key_str[MAX_KEY_STR_LEN];
 
-    return sai_set_attribute(&key, SAI_OBJECT_TYPE_UDF_MATCH, attr);
+    SX_LOG_ENTER();
+
+    udf_key_to_str(udf_match_id, SAI_OBJECT_TYPE_UDF_MATCH, key_str);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_UDF_MATCH, udf_match_vendor_attribs, attr);
 }
 
 /**
@@ -1915,8 +1959,13 @@ static sai_status_t mlnx_sai_get_udf_match_attribute(_In_ sai_object_id_t     ud
                                                      _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = udf_match_id };
+    char                   key_str[MAX_KEY_STR_LEN];
 
-    return sai_get_attributes(&key, SAI_OBJECT_TYPE_UDF_MATCH, attr_count, attr_list);
+    SX_LOG_ENTER();
+
+    udf_key_to_str(udf_match_id, SAI_OBJECT_TYPE_UDF_MATCH, key_str);
+    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_UDF_MATCH, udf_match_vendor_attribs, attr_count,
+                              attr_list);
 }
 
 /**
@@ -1937,15 +1986,28 @@ static sai_status_t mlnx_sai_create_udf_group(_Out_ sai_object_id_t      *udf_gr
     sai_status_t                 status;
     const sai_attribute_value_t *attr_group_type, *attr_group_length;
     sai_udf_group_type_t         group_type;
+    char                         list_str[MAX_LIST_VALUE_STR_LEN] = {0};
+    char                         key_str[MAX_KEY_STR_LEN] = {0};
     uint32_t                     group_lengh, db_index, attr_index;
 
     SX_LOG_ENTER();
 
-    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_UDF_GROUP, udf_group_id);
-    if (SAI_ERR(status)) {
+    if (NULL == udf_group_id) {
+        SX_LOG_ERR("NULL udf group id param.\n");
+        status = SAI_STATUS_INVALID_PARAMETER;
         goto out;
     }
-    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_UDF_GROUP);
+
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_UDF_GROUP, udf_group_vendor_attribs,
+                                    SAI_COMMON_API_CREATE);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed attribs check.\n");
+        goto out;
+    }
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_UDF_GROUP, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create udf group object.\n");
+    SX_LOG_NTC("Attribs %s.\n", list_str);
 
     group_type = SAI_UDF_GROUP_TYPE_GENERIC;
 
@@ -1994,7 +2056,8 @@ static sai_status_t mlnx_sai_create_udf_group(_Out_ sai_object_id_t      *udf_gr
 
     udf_db_group_ptr(db_index)->sai_object = *udf_group_id;
 
-    MLNX_LOG_OID_CREATED(*udf_group_id);
+    udf_key_to_str(*udf_group_id, SAI_OBJECT_TYPE_UDF_GROUP, key_str);
+    SX_LOG_NTC("Created %s. Object id [%lx]\n", key_str, *udf_group_id);
 
 out_unlock:
     sai_db_unlock();
@@ -2016,10 +2079,12 @@ static sai_status_t mlnx_sai_remove_udf_group(_In_ sai_object_id_t udf_group_id)
     mlnx_udf_group_t *udf_group;
     mlnx_udf_list_t  *udf_group_udfs;
     uint32_t          group_db_index;
+    char              key_str[MAX_KEY_STR_LEN] = {0};
 
     SX_LOG_ENTER();
 
-    MLNX_LOG_OID_REMOVE(udf_group_id);
+    udf_key_to_str(udf_group_id, SAI_OBJECT_TYPE_UDF_GROUP, key_str);
+    SX_LOG_NTC("Remove %s.\n", key_str);
 
     sai_db_write_lock();
 
@@ -2068,8 +2133,12 @@ static sai_status_t mlnx_sai_set_udf_group_attribute(_In_ sai_object_id_t       
                                                      _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = udf_group_id };
+    char                   key_str[MAX_KEY_STR_LEN];
 
-    return sai_set_attribute(&key, SAI_OBJECT_TYPE_UDF_GROUP, attr);
+    SX_LOG_ENTER();
+
+    udf_key_to_str(udf_group_id, SAI_OBJECT_TYPE_UDF_GROUP, key_str);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_UDF_GROUP, udf_group_vendor_attribs, attr);
 }
 
 /**
@@ -2086,8 +2155,13 @@ static sai_status_t mlnx_sai_get_udf_group_attribute(_In_ sai_object_id_t     ud
                                                      _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = udf_group_id };
+    char                   key_str[MAX_KEY_STR_LEN];
 
-    return sai_get_attributes(&key, SAI_OBJECT_TYPE_UDF_GROUP, attr_count, attr_list);
+    SX_LOG_ENTER();
+
+    udf_key_to_str(udf_group_id, SAI_OBJECT_TYPE_UDF_GROUP, key_str);
+    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_UDF_GROUP, udf_group_vendor_attribs, attr_count,
+                              attr_list);
 }
 
 sai_status_t mlnx_udf_log_set(sx_verbosity_level_t level)
