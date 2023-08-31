@@ -59,7 +59,6 @@ static sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      
 static sai_status_t mlnx_get_route(const sai_route_entry_t* route_entry,
                                    sx_uc_route_get_entry_t *route_get_entry,
                                    sx_router_id_t          *vrid);
-static sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t ecmp, _Out_ sai_object_id_t *nh);
 static sai_status_t mlnx_route_counter_id_set(_In_ const sai_object_key_t      *key,
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg);
@@ -70,7 +69,7 @@ static const sai_vendor_attribute_entry_t route_vendor_attribs[] = {
       mlnx_route_packet_action_get, NULL,
       mlnx_route_packet_action_set, NULL },
     { SAI_ROUTE_ENTRY_ATTR_USER_TRAP_ID,
-      { false, false, false, false },
+      { true, false, true, true },
       { true, false, true, true },
       mlnx_route_trap_id_get, NULL,
       mlnx_route_trap_id_set, NULL },
@@ -102,15 +101,12 @@ static const mlnx_attr_enum_info_t        route_enum_info[] = {
         SAI_PACKET_ACTION_LOG,
         SAI_PACKET_ACTION_DROP)
 };
-const mlnx_obj_type_attrs_info_t          mlnx_route_obj_type_info =
-{ route_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(route_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
-static void route_key_to_str(_In_ const sai_route_entry_t* route_entry, _Out_ char *key_str)
+static size_t route_entry_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
 {
-    int res;
-
-    res = snprintf(key_str, MAX_KEY_STR_LEN, "route ");
-    sai_ipprefix_to_str(route_entry->destination, MAX_KEY_STR_LEN - res, key_str + res);
+    return sai_ipprefix_to_str(key->key.route_entry.destination, max_len, str);
 }
+const mlnx_obj_type_attrs_info_t mlnx_route_obj_type_info =
+{ route_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(route_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), route_entry_info_print};
 
 _Success_(return == SAI_STATUS_SUCCESS)
 static sai_status_t mlnx_translate_sai_route_entry_to_sdk(_In_ const sai_route_entry_t *route_entry,
@@ -258,7 +254,6 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
 }
 
 static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *route_entry,
-                                               _In_ const char              *key_str,
                                                _In_ uint32_t                 attr_count,
                                                _In_ const sai_attribute_t   *attr_list,
                                                _Out_ sx_ip_prefix_t         *sx_ip_prefix,
@@ -266,12 +261,12 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
                                                _Out_ sx_uc_route_data_t     *sx_route_data)
 {
     sai_status_t                 status;
-    const sai_attribute_value_t *action, *next_hop;
+    const sai_attribute_value_t *action, *next_hop, *trap;
     sai_object_id_t              next_hop_oid;
-    uint32_t                     action_index, next_hop_index;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
+    uint32_t                     action_index, next_hop_index, trap_index;
     bool                         next_hop_id_found = false;
     sx_log_severity_t            log_level = SX_LOG_NOTICE;
+    int32_t                      packet_action;
 
     assert(sx_ip_prefix);
     assert(sx_vrid);
@@ -282,23 +277,18 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, route_vendor_attribs,
-                                    SAI_COMMON_API_CREATE);
+    status = check_attribs_on_create_without_oid(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, MAX_LIST_VALUE_STR_LEN, list_str);
     /* lower log level for route created often in Sonic */
 #ifdef ACS_OS
     log_level = SX_LOG_INFO;
 #endif
-    SX_LOG(log_level, "Create route %s\n", key_str);
-    SX_LOG(log_level, "Attribs %s\n", list_str);
+    MLNX_LOG_ATTRS_VERBOSITY(log_level, attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY);
 
     sx_route_data->action = SX_ROUTER_ACTION_FORWARD;
-    sx_route_data->trap_attr.prio = SX_TRAP_PRIORITY_MED;
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION, &action, &action_index);
     if (SAI_STATUS_SUCCESS == status) {
@@ -306,6 +296,9 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
         if (SAI_ERR(status)) {
             return status;
         }
+        packet_action = action->s32;
+    } else {
+        packet_action = SAI_PACKET_ACTION_FORWARD;
     }
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID, &next_hop, &next_hop_index);
@@ -323,6 +316,41 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
             "Packet action forward/log without next hop / next hop group is not allowed for non directly reachable route\n");
         return SAI_STATUS_INVALID_PARAMETER;
     }
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTE_ENTRY_ATTR_USER_TRAP_ID, &trap, &trap_index);
+    if (SAI_ERR(status) && (status != SAI_STATUS_ITEM_NOT_FOUND)) {
+        SX_LOG_ERR("Failed to find trap id attribute\n");
+        return status;
+    }
+
+    if (is_action_trap(packet_action) && (SAI_ERR(status) || (trap->oid == SAI_NULL_OBJECT_ID))) {
+        SX_LOG_ERR("Trap action requires a user defined trap\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if ((!is_action_trap(packet_action)) && SAI_OK(status)) {
+        SX_LOG_ERR("Invalid attribute trap id for non-trap packet action\n");
+        return SAI_STATUS_INVALID_ATTRIBUTE_0 + trap_index;
+    }
+
+    sai_db_read_lock();
+    if (is_action_trap((packet_action))) {
+        status = mlnx_get_user_defined_trap_prio(SAI_OBJECT_TYPE_ROUTE_ENTRY, trap->oid,
+                                                 &sx_route_data->trap_attr.prio);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get trap priority\n");
+            sai_db_unlock();
+            return status;
+        }
+
+        status = mlnx_trap_refcount_increase(trap->oid);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to increase trap refcount\n");
+            sai_db_unlock();
+            return status;
+        }
+    }
+    sai_db_unlock();
 
     status = mlnx_fill_route_data(sx_route_data, next_hop_oid, next_hop_index, route_entry);
     if (SAI_ERR(status)) {
@@ -391,7 +419,6 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
     sx_ip_prefix_t               ip_prefix;
     sx_router_id_t               vrid = DEFAULT_VRID;
     sx_uc_route_data_t           route_data;
-    char                         key_str[MAX_KEY_STR_LEN];
     sx_log_severity_t            log_level = SX_LOG_NOTICE;
     const sai_attribute_value_t *counter = NULL;
     uint32_t                     counter_index;
@@ -401,9 +428,7 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
     memset(&ip_prefix, 0, sizeof(ip_prefix));
     memset(&route_data, 0, sizeof(route_data));
 
-    route_key_to_str(route_entry, key_str);
-
-    status = mlnx_route_attr_to_sx_data(route_entry, key_str, attr_count, attr_list, &ip_prefix, &vrid, &route_data);
+    status = mlnx_route_attr_to_sx_data(route_entry, attr_count, attr_list, &ip_prefix, &vrid, &route_data);
     if (SAI_ERR(status)) {
         SX_LOG_EXIT();
         return status;
@@ -430,7 +455,7 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
     log_level = SX_LOG_INFO;
 #endif
 
-    SX_LOG(log_level, "Created route %s\n", key_str);
+    MLNX_LOG_KEY_CREATED(log_level, route_entry, SAI_OBJECT_TYPE_ROUTE_ENTRY);
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -495,7 +520,8 @@ static sai_status_t mlnx_route_to_nhg_remove(_In_ mlnx_shm_rm_array_idx_t nhg_id
 
     status = mlnx_nhg_counter_update(nhg_idx,
                                      vrf,
-                                     -1);
+                                     -1,
+                                     false);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to decrement NHG counter.\n");
         return status;
@@ -504,7 +530,9 @@ static sai_status_t mlnx_route_to_nhg_remove(_In_ mlnx_shm_rm_array_idx_t nhg_id
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_route_post_remove(_In_ sx_uc_route_get_entry_t *route_get_entry, _In_ sai_object_id_t vrf)
+/* requires sai_db write lock */
+static sai_status_t mlnx_route_post_remove_unlocked(_In_ sx_uc_route_get_entry_t *route_get_entry,
+                                                    _In_ sai_object_id_t          vrf)
 {
     sai_status_t            status = SAI_STATUS_SUCCESS;
     sai_object_id_t         nh = SAI_NULL_OBJECT_ID;
@@ -517,13 +545,11 @@ static sai_status_t mlnx_route_post_remove(_In_ sx_uc_route_get_entry_t *route_g
         return SAI_STATUS_SUCCESS;
     }
 
-    sai_db_write_lock();
-
     status = mlnx_ecmp_to_nhg_map_entry_get(route_get_entry->route_data.uc_route_param.ecmp_id,
                                             &nhg_idx);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to find ECMP-NHG map entry.\n");
-        goto exit;
+        return status;
     }
 
     if (!MLNX_SHM_RM_ARRAY_IDX_IS_UNINITIALIZED(nhg_idx)) {
@@ -531,32 +557,68 @@ static sai_status_t mlnx_route_post_remove(_In_ sx_uc_route_get_entry_t *route_g
                                           vrf);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to remove route to NHG.\n");
-            goto exit;
+            return status;
         }
-        status = SAI_STATUS_SUCCESS;
-        goto exit;
-    }
-
-    status = mlnx_route_get_encap_nh(route_get_entry->route_data.uc_route_param.ecmp_id,
-                                     &nh);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to find Encap NH.\n");
-        goto exit;
-    }
-
-    if (nh != SAI_NULL_OBJECT_ID) {
-        status = mlnx_route_to_encap_nexthop_remove(nh, vrf);
+    } else {
+        status = mlnx_route_get_encap_nh(route_get_entry->route_data.uc_route_param.ecmp_id,
+                                         &nh);
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Remove route to Encap Nexthop failed.\n");
-            goto exit;
+            SX_LOG_ERR("Failed to find Encap NH.\n");
+            return status;
         }
-        status = SAI_STATUS_SUCCESS;
-        goto exit;
+
+        if (nh != SAI_NULL_OBJECT_ID) {
+            status = mlnx_route_to_encap_nexthop_remove(nh, vrf);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Remove route to Encap Nexthop failed.\n");
+                return status;
+            }
+        }
     }
 
-exit:
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_route_post_remove(_In_ sx_uc_route_get_entry_t *route_get_entry, _In_ sai_object_id_t vrf)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+
+    assert(route_get_entry);
+
+    sai_db_write_lock();
+
+    status = mlnx_route_post_remove_unlocked(route_get_entry, vrf);
+
     sai_db_unlock();
     return status;
+}
+
+
+static sai_status_t mlnx_remove_route_trap(sx_uc_route_get_entry_t *route_get_entry)
+{
+    sai_packet_action_t packet_action;
+    sai_status_t        status;
+
+    SX_LOG_ENTER();
+
+    assert(route_get_entry);
+
+    status = mlnx_translate_sdk_router_action_to_sai(route_get_entry->route_data.action, &packet_action);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to translate SDK router action to SAI\n");
+        return status;
+    }
+
+    if (is_action_trap(packet_action)) {
+        status = mlnx_trap_refcount_decrease_by_prio(SAI_OBJECT_TYPE_ROUTE_ENTRY,
+                                                     route_get_entry->route_data.trap_attr.prio);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to decrease trap refcount by prio %d\n", route_get_entry->route_data.trap_attr.prio);
+            return status;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
 }
 
 /*
@@ -576,7 +638,6 @@ static sai_status_t mlnx_remove_route(_In_ const sai_route_entry_t* route_entry)
 {
     sai_status_t            status;
     sx_status_t             sx_status;
-    char                    key_str[MAX_KEY_STR_LEN];
     sx_router_id_t          vrid = DEFAULT_VRID;
     sx_uc_route_get_entry_t route_get_entry;
 
@@ -587,8 +648,7 @@ static sai_status_t mlnx_remove_route(_In_ const sai_route_entry_t* route_entry)
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    route_key_to_str(route_entry, key_str);
-    SX_LOG_NTC("Remove route %s\n", key_str);
+    MLNX_LOG_KEY_REMOVE(SX_LOG_NOTICE, route_entry, SAI_OBJECT_TYPE_ROUTE_ENTRY);
 
     status = mlnx_get_route(route_entry, &route_get_entry, &vrid);
     if (SAI_ERR(status)) {
@@ -601,15 +661,25 @@ static sai_status_t mlnx_remove_route(_In_ const sai_route_entry_t* route_entry)
         return sdk_to_sai(sx_status);
     }
 
-    status = mlnx_route_post_remove(&route_get_entry,
-                                    route_entry->vr_id);
+    sai_db_write_lock();
+
+    status = mlnx_remove_route_trap(&route_get_entry);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Route post remove failed.\n");
-        return status;
+        SX_LOG_ERR("Failed to unbind trap from route\n");
+        goto out;
     }
 
+    status = mlnx_route_post_remove_unlocked(&route_get_entry, route_entry->vr_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Route post remove failed.\n");
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /*
@@ -628,18 +698,14 @@ static sai_status_t mlnx_set_route_attribute(_In_ const sai_route_entry_t* route
                                              _In_ const sai_attribute_t   *attr)
 {
     sai_object_key_t key;
-    char             key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    if (NULL == route_entry) {
-        SX_LOG_ERR("NULL route_entry param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
+    if (!route_entry) {
+        SX_LOG_ERR("Entry is NULL.\n");
+        return SAI_STATUS_FAILURE;
     }
-    memcpy(&key.key.route_entry, route_entry, sizeof(*route_entry));
 
-    route_key_to_str(route_entry, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_ROUTE_ENTRY, route_vendor_attribs, attr);
+    memcpy(&key.key.route_entry, route_entry, sizeof(*route_entry));
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_ROUTE_ENTRY, attr);
 }
 
 /*
@@ -660,18 +726,14 @@ static sai_status_t mlnx_get_route_attribute(_In_ const sai_route_entry_t* route
                                              _Inout_ sai_attribute_t      *attr_list)
 {
     sai_object_key_t key;
-    char             key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    if (NULL == route_entry) {
-        SX_LOG_ERR("NULL route_entry param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
+    if (!route_entry) {
+        SX_LOG_ERR("Entry is NULL.\n");
+        return SAI_STATUS_FAILURE;
     }
-    memcpy(&key.key.route_entry, route_entry, sizeof(*route_entry));
 
-    route_key_to_str(route_entry, key_str);
-    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_ROUTE_ENTRY, route_vendor_attribs, attr_count, attr_list);
+    memcpy(&key.key.route_entry, route_entry, sizeof(*route_entry));
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_ROUTE_ENTRY, attr_count, attr_list);
 }
 
 static sai_status_t mlnx_get_route(const sai_route_entry_t* route_entry,
@@ -716,6 +778,7 @@ static sai_status_t mlnx_route_packet_action_get(_In_ const sai_object_key_t   *
     const sai_route_entry_t* route_entry = &key->key.route_entry;
     sx_uc_route_get_entry_t  route_get_entry;
     sx_router_id_t           vrid;
+    sai_packet_action_t      packet_action;
 
     SX_LOG_ENTER();
 
@@ -724,9 +787,11 @@ static sai_status_t mlnx_route_packet_action_get(_In_ const sai_object_key_t   *
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_translate_sdk_router_action_to_sai(route_get_entry.route_data.action, &value->s32))) {
+        (status = mlnx_translate_sdk_router_action_to_sai(route_get_entry.route_data.action, &packet_action))) {
         return status;
     }
+
+    value->s32 = packet_action;
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -738,7 +803,44 @@ static sai_status_t mlnx_route_trap_id_get(_In_ const sai_object_key_t   *key,
                                            _Inout_ vendor_cache_t        *cache,
                                            void                          *arg)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sai_status_t             status;
+    const sai_route_entry_t* route_entry = &key->key.route_entry;
+    sx_uc_route_get_entry_t  route_get_entry;
+    sx_router_id_t           vrid;
+    sai_packet_action_t      packet_action;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_get_route(route_entry, &route_get_entry, &vrid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get route\n");
+        return status;
+    }
+
+    status = mlnx_translate_sdk_router_action_to_sai(route_get_entry.route_data.action, &packet_action);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to translate SDK router %d action to SAI\n", route_get_entry.route_data.action);
+        return status;
+    }
+
+    sai_db_read_lock();
+
+    if (is_action_trap(packet_action)) {
+        status = mlnx_get_user_defined_trap_by_prio(SAI_OBJECT_TYPE_ROUTE_ENTRY,
+                                                    route_get_entry.route_data.trap_attr.prio, &value->oid);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to lookup trap oid by trap prio %d\n", route_get_entry.route_data.trap_attr.prio);
+            goto out;
+        }
+    } else {
+        value->oid = SAI_NULL_OBJECT_ID;
+    }
+
+out:
+    sai_db_unlock();
+
+    SX_LOG_EXIT();
+    return status;
 }
 
 static sai_status_t mlnx_ecmp_get_ip(_In_ sx_ecmp_id_t sdk_ecmp_id, _Out_ sx_ip_addr_t *ip)
@@ -770,10 +872,13 @@ static bool mlnx_is_encap_nexthop_fake_ip(_In_ sx_ip_addr_t *ip)
 {
     assert(ip);
 
-    return (ip->version == SX_IP_VERSION_IPV4) &&
-           (((ip->addr.ipv4.s_addr & 0xFF000000) >> 24) == 0) &&
-           (((ip->addr.ipv4.s_addr & 0x00FFFF00) >> 8) < MAX_ENCAP_NEXTHOPS_NUMBER) &&
-           (((ip->addr.ipv4.s_addr & 0x000000FF) < NUMBER_OF_LOCAL_VNETS));
+    if (ip->version == SX_IP_VERSION_IPV4) {
+        return ((((ip->addr.ipv4.s_addr & 0xFF000000) >> 24) == 0) &&
+                (((ip->addr.ipv4.s_addr & 0x00FFFF00) >> 8) < MAX_ENCAP_NEXTHOPS_NUMBER) &&
+                (((ip->addr.ipv4.s_addr & 0x000000FF) < NUMBER_OF_LOCAL_VNETS)));
+    }
+
+    return false;
 }
 
 static sai_status_t mlnx_route_get_encap_nexthop(_In_ sx_ip_addr_t *ip, _Out_ sai_object_id_t *nh)
@@ -781,15 +886,20 @@ static sai_status_t mlnx_route_get_encap_nexthop(_In_ sx_ip_addr_t *ip, _Out_ sa
     sai_status_t            status;
     mlnx_shm_rm_array_idx_t db_idx;
 
-    db_idx.idx = (ip->addr.ipv4.s_addr & 0x00FFFF00) >> 8;
     db_idx.type = MLNX_SHM_RM_ARRAY_TYPE_NEXTHOP;
+
+    if (ip->version == SX_IP_VERSION_IPV4) {
+        db_idx.idx = (ip->addr.ipv4.s_addr & 0x00FFFF00) >> 8;
+    } else {
+        return SAI_STATUS_FAILURE;
+    }
 
     status = mlnx_encap_nexthop_oid_create(db_idx, nh);
 
     return status;
 }
 
-static sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t ecmp, _Out_ sai_object_id_t *nh)
+sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t ecmp, _Out_ sai_object_id_t *nh)
 {
     sai_status_t            status;
     mlnx_shm_rm_array_idx_t nhg_idx;
@@ -922,61 +1032,219 @@ static sai_status_t mlnx_modify_route(sx_router_id_t           vrid,
 }
 
 /* Packet action [sai_packet_action_t] */
+
+/* Different packet action will be set depending on the action and whether is nexthop or trap id bound to the route
+ * 1) If new action is FORWARD, but current action is DROP or TRAP, action will be changed to an action that does
+ * not require nexthop e.g FORWARD-> DROP
+ * 2) If new action is TRAP, but current action is DROP or FORWARD. action will be changed to an action that does
+ * not require trap id e.g TRAP-> DROP
+ * 3) new LOG action requires both trap and nexthop id`s so the current action could not be changed
+ * current action: DROP, result action: DROP
+ * current action: TRAP, result action: TRAP
+ * current action: FORWARD, result action: FORWARD
+ * current action: LOG, result action: LOG
+ */
 static sai_status_t mlnx_route_packet_action_set(_In_ const sai_object_key_t      *key,
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg)
 {
     sai_status_t             status;
     const sai_route_entry_t* route_entry = &key->key.route_entry;
-    sx_uc_route_get_entry_t  route_get_entry;
-    sx_router_action_t       route_action;
+    sx_uc_route_get_entry_t  old_route_get_entry, route_get_entry;
     sx_router_id_t           vrid;
+    bool                     is_action_present;
+    sai_packet_action_t      current_sai_action, action_to_configure;
 
     SX_LOG_ENTER();
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_get_route(route_entry, &route_get_entry, &vrid))) {
+    status = mlnx_get_route(route_entry, &route_get_entry, &vrid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get route data\n");
         return status;
     }
 
-    route_action = route_get_entry.route_data.action;
-    if (((SX_ROUTER_ACTION_DROP == route_action) || (SX_ROUTER_ACTION_TRAP == route_action)) &&
-        ((SAI_PACKET_ACTION_FORWARD == value->s32) || (SAI_PACKET_ACTION_LOG == value->s32))) {
-        status = mlnx_fdb_route_action_save(SAI_OBJECT_TYPE_ROUTE_ENTRY, route_entry, value->s32);
+    old_route_get_entry = route_get_entry;
+
+    status = mlnx_translate_sdk_router_action_to_sai(route_get_entry.route_data.action, &current_sai_action);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to translate sdk action to sai\n");
+        return status;
+    }
+
+    action_to_configure = value->s32;
+    if ((!is_action_trap(current_sai_action)) && is_action_trap(value->s32)) {
+        status = mlnx_translate_action_to_no_trap(action_to_configure, &action_to_configure, &is_action_present);
         if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to translate action %d to action that does not require a trap id\n",
+                       current_sai_action);
             return status;
-        }
-    } else {
-        if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_translate_sai_router_action_to_sdk(value->s32, &route_get_entry.route_data.action, 0))) {
-            return status;
-        }
-
-        mlnx_fdb_route_action_clear(SAI_OBJECT_TYPE_ROUTE_ENTRY, route_entry);
-
-        status = mlnx_modify_route(vrid, &route_get_entry, SX_ACCESS_CMD_ADD);
-        if (SAI_ERR(status)) {
-            return status;
-        }
-
-        if (((SX_ROUTER_ACTION_FORWARD == route_action) || (SX_ROUTER_ACTION_MIRROR == route_action)) &&
-            ((SAI_PACKET_ACTION_DROP == value->s32) || (SAI_PACKET_ACTION_TRAP == value->s32))) {
-            status = mlnx_route_post_remove(&route_get_entry,
-                                            route_entry->vr_id);
-            if (SAI_ERR(status)) {
-                return status;
-            }
         }
     }
 
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    if ((!is_action_forward(current_sai_action)) && is_action_forward(action_to_configure)) {
+        status = mlnx_translate_action_to_no_forward(action_to_configure, &action_to_configure);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to translate action %d to action that does not require a nexthop id\n",
+                       current_sai_action);
+            return status;
+        }
+    }
+
+    if (action_to_configure == current_sai_action) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    status = mlnx_translate_sai_router_action_to_sdk(action_to_configure, &route_get_entry.route_data.action, 0);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to translate sai router action to SDK\n");
+        return status;
+    }
+
+    status = mlnx_modify_route(vrid, &route_get_entry, SX_ACCESS_CMD_ADD);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to modify route\n");
+        return status;
+    }
+
+    if (is_action_forward(current_sai_action) && (!is_action_forward(action_to_configure))) {
+        status = mlnx_route_post_remove(&old_route_get_entry, route_entry->vr_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Route post remove failed.\n");
+            return status;
+        }
+    }
+
+    sai_db_write_lock();
+
+    if (is_action_trap(current_sai_action) && (!is_action_trap(action_to_configure))) {
+        status = mlnx_trap_refcount_decrease_by_prio(SAI_OBJECT_TYPE_ROUTE_ENTRY,
+                                                     old_route_get_entry.route_data.trap_attr.prio);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to decrease trap prio %d\n", old_route_get_entry.route_data.trap_attr.prio);
+            goto out;
+        }
+    }
+out:
+    sai_db_unlock();
+
+    return status;
 }
 
+/*
+ * Trap set may change the action that is configured in the route in following cases
+ * > If current action is DROP and trap id provided is not SAI_NULL_OBJECT_ID TRAP packet action will be configured
+ * > If current action is FORWARD and trap id provided is not SAI_NULL_OBJECT_ID LOG packet action will be configured
+ * > If current action is LOG and trap id provided is SAI_NULL_OBJECT_ID FORWARD packet action will be configured
+ * > If current action is TRAP and trap id provided is SAI_NULL_OBJECT_ID DROP packet action will be configured
+ *
+ * In other cases route packet action will remain the same
+ */
 static sai_status_t mlnx_route_trap_id_set(_In_ const sai_object_key_t      *key,
                                            _In_ const sai_attribute_value_t *value,
                                            void                             *arg)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sai_status_t             status;
+    const sai_route_entry_t* route_entry = &key->key.route_entry;
+    sx_uc_route_get_entry_t  route_get_entry;
+    sx_router_id_t           vrid;
+    sai_packet_action_t      current_action, action_to_configure;
+    sai_object_id_t          current_trap = SAI_NULL_OBJECT_ID;
+    bool                     is_action_present;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_get_route(route_entry, &route_get_entry, &vrid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get route data\n");
+        return status;
+    }
+
+    status = mlnx_translate_sdk_router_action_to_sai(route_get_entry.route_data.action, &current_action);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to translate sdk action %d to sai\n", route_get_entry.route_data.action);
+        return status;
+    }
+
+    sai_db_write_lock();
+
+    if (value->oid != SAI_NULL_OBJECT_ID) {
+        if (!mlnx_is_hostif_user_defined_trap_valid_for_set(SAI_OBJECT_TYPE_ROUTE_ENTRY, value->oid)) {
+            status = SAI_STATUS_INVALID_PARAMETER;
+            SX_LOG_ERR("Invalid trap id 0x%" PRIx64 "\n", value->oid);
+            goto out;
+        }
+    }
+
+    if (is_action_trap(current_action)) {
+        status = mlnx_get_user_defined_trap_by_prio(SAI_OBJECT_TYPE_ROUTE_ENTRY,
+                                                    route_get_entry.route_data.trap_attr.prio, &current_trap);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get current trap_id by prio %d\n", route_get_entry.route_data.trap_attr.prio);
+            goto out;
+        }
+    }
+
+    if (current_trap == value->oid) {
+        goto out;
+    }
+
+    if ((value->oid != SAI_NULL_OBJECT_ID) && (!is_action_trap(current_action))) {
+        status = mlnx_translate_action_to_trap(true, current_action, &action_to_configure);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to translate current action %d to trap action\n", current_action);
+            goto out;
+        }
+    } else if ((value->oid == SAI_NULL_OBJECT_ID) && is_action_trap(current_action)) {
+        status = mlnx_translate_action_to_no_trap(current_action, &action_to_configure, &is_action_present);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to translate current action %d to non-trap action\n", current_action);
+            goto out;
+        }
+    } else {
+        action_to_configure = current_action;
+    }
+
+    status = mlnx_translate_sai_router_action_to_sdk(action_to_configure, &route_get_entry.route_data.action, 0);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to translate SAI action %d to SDK\n", action_to_configure);
+        goto out;
+    }
+
+    if (value->oid != SAI_NULL_OBJECT_ID) {
+        status = mlnx_get_user_defined_trap_prio(SAI_OBJECT_TYPE_ROUTE_ENTRY, value->oid,
+                                                 &route_get_entry.route_data.trap_attr.prio);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get trap 0x%" PRIx64 " priority\n", value->oid);
+            goto out;
+        }
+    }
+
+    status = mlnx_modify_route(vrid, &route_get_entry, SX_ACCESS_CMD_ADD);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to modify route\n");
+        goto out;
+    }
+
+    if (current_trap != SAI_NULL_OBJECT_ID) {
+        status = mlnx_trap_refcount_decrease(current_trap);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to decrease previous trap refcount. Trap id - 0x%" PRIx64 "\n", current_trap);
+            goto out;
+        }
+    }
+
+    if (value->oid != SAI_NULL_OBJECT_ID) {
+        status = mlnx_trap_refcount_increase(value->oid);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to increase new trap refcount. Trap id - 0x%" PRIx64 "\n", value->oid);
+            goto out;
+        }
+    }
+out:
+    sai_db_unlock();
+
+    SX_LOG_EXIT();
+    return status;
 }
 
 /* Next hop or next hop group id for the packet or a router interface
@@ -984,7 +1252,17 @@ static sai_status_t mlnx_route_trap_id_set(_In_ const sai_object_key_t      *key
  * The next hop id can be a generic next hop object, such as next hop,
  * next hop group.
  * Directly reachable routes are the IP subnets that are directly attached to the router.
- * For such routes, fill the router interface id to which the subnet is attached */
+ * For such routes, fill the router interface id to which the subnet is attached
+ *
+ * Note:
+ *  Next hop set may change the action that is configured in the route in following cases
+ * > If current action is DROP and nexthop id provided is not SAI_NULL_OBJECT_ID FORWARD packet action will be configured
+ * > If current action is TRAP and nexthop id provided is not SAI_NULL_OBJECT_ID LOG packet action will be configured
+ * > If current action is LOG and nexthop id provided is SAI_NULL_OBJECT_ID TRAP packet action will be configured
+ * > If current action is FORWARD and nexthop id provided is SAI_NULL_OBJECT_ID DROP packet action will be configured
+ *
+ * In other cases route packet action will remain the same
+ */
 static sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      *key,
                                                _In_ const sai_attribute_value_t *value,
                                                void                             *arg)
@@ -994,34 +1272,60 @@ static sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      
     sx_uc_route_get_entry_t  old_route_get_entry;
     sx_uc_route_get_entry_t  route_get_entry;
     sx_router_id_t           vrid;
+    sai_packet_action_t      current_action, action_to_configure;
+    sx_access_cmd_t          cmd = SX_ACCESS_CMD_ADD;
 
     SX_LOG_ENTER();
 
-    status = mlnx_get_route(route_entry, &old_route_get_entry, &vrid);
+    status = mlnx_get_route(route_entry, &route_get_entry, &vrid);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    route_get_entry = old_route_get_entry;
+    old_route_get_entry = route_get_entry;
+
+    status = mlnx_translate_sdk_router_action_to_sai(route_get_entry.route_data.action, &current_action);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to translate sdk action %d to sai\n", route_get_entry.route_data.action);
+        return status;
+    }
+
+    if ((value->oid != SAI_NULL_OBJECT_ID) && (!is_action_forward(current_action))) {
+        status = mlnx_translate_action_to_forward(current_action, &action_to_configure);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to translate current action %d to trap action\n", current_action);
+            return status;
+        }
+    } else if ((value->oid == SAI_NULL_OBJECT_ID) && is_action_forward(current_action)) {
+        status = mlnx_translate_action_to_no_forward(current_action, &action_to_configure);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to translate current action %d to non-trap action\n", current_action);
+            return status;
+        }
+    } else {
+        action_to_configure = current_action;
+        cmd = SX_ACCESS_CMD_SET;
+    }
+
+    status = mlnx_translate_sai_router_action_to_sdk(action_to_configure, &route_get_entry.route_data.action, 0);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to translate sai action %d to sdk\n", action_to_configure);
+        return status;
+    }
+
     status = mlnx_fill_route_data(&route_get_entry.route_data, value->oid, 0, route_entry);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to fill route data\n");
         return status;
     }
 
-    if ((old_route_get_entry.route_data.uc_route_param.ecmp_id == SX_ROUTER_ECMP_ID_INVALID) &&
-        (value->oid != SAI_NULL_OBJECT_ID)) {
-        route_get_entry.route_data.action = SX_ROUTER_ACTION_FORWARD;
-    }
-
-    mlnx_fdb_route_action_fetch(SAI_OBJECT_TYPE_ROUTE_ENTRY, route_entry, &route_get_entry.route_data.action);
-
-    status = mlnx_modify_route(vrid, &route_get_entry, SX_ACCESS_CMD_SET);
+    status = mlnx_modify_route(vrid, &route_get_entry, cmd);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to modify route sx\n");
         return status;
     }
 
-    status = mlnx_route_post_remove(&old_route_get_entry,
-                                    route_entry->vr_id);
+    status = mlnx_route_post_remove(&old_route_get_entry, route_entry->vr_id);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Route post remove failed.\n");
         return status;

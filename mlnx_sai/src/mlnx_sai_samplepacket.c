@@ -73,27 +73,15 @@ static const mlnx_attr_enum_info_t        smaplepacket_enum_info[] = {
     [SAI_SAMPLEPACKET_ATTR_MODE] = ATTR_ENUM_VALUES_LIST(
         SAI_SAMPLEPACKET_MODE_EXCLUSIVE)
 };
-const mlnx_obj_type_attrs_info_t          mlnx_samplepacket_obj_type_info =
-{ samplepacket_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(smaplepacket_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
-static void samplepacket_key_to_str(_In_ const sai_object_id_t sai_samplepacket_obj_id, _Out_ char *key_str)
+static size_t samplepacket_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
 {
-    uint32_t internal_samplepacket_obj_idx = 0;
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
 
-    SX_LOG_ENTER();
-
-    if (SAI_STATUS_SUCCESS !=
-        mlnx_object_to_type(sai_samplepacket_obj_id, SAI_OBJECT_TYPE_SAMPLEPACKET, &internal_samplepacket_obj_idx,
-                            NULL)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid sai samplepacket obj ID %" PRId64 "", sai_samplepacket_obj_id);
-    } else {
-        snprintf(key_str,
-                 MAX_KEY_STR_LEN,
-                 "samplepacket obj idx %d",
-                 internal_samplepacket_obj_idx);
-    }
-
-    SX_LOG_EXIT();
+    return snprintf(str, max_len, "[mlnx_samplepacket_session[%u]]", mlnx_oid.id.u32);
 }
+const mlnx_obj_type_attrs_info_t mlnx_samplepacket_obj_type_info =
+{ samplepacket_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(smaplepacket_enum_info), OBJ_STAT_CAP_INFO_EMPTY(),
+  samplepacket_info_print};
 
 static sai_status_t mlnx_samplepacket_sample_rate_validate(_In_ const uint32_t internal_samplepacket_obj_idx)
 {
@@ -407,7 +395,6 @@ static sai_status_t mlnx_create_samplepacket_session(_Out_ sai_object_id_t      
                                                      _In_ uint32_t               attr_count,
                                                      _In_ const sai_attribute_t *attr_list)
 {
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     const sai_attribute_value_t *samplepacket_sample_rate = NULL, *samplepacket_type = NULL, *samplepacket_mode =
         NULL;
     sai_status_t status = SAI_STATUS_FAILURE, status_type = SAI_STATUS_FAILURE;
@@ -417,17 +404,11 @@ static sai_status_t mlnx_create_samplepacket_session(_Out_ sai_object_id_t      
 
     SX_LOG_ENTER();
 
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_SAMPLEPACKET, samplepacket_vendor_attribs,
-                                    SAI_COMMON_API_CREATE))) {
-        SX_LOG_ERR("Samplepacket: metadata check failed\n");
-        SX_LOG_EXIT();
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_SAMPLEPACKET, sai_samplepacket_obj_id);
+    if (SAI_ERR(status)) {
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_SAMPLEPACKET, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create Samplepacket attributes: %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_SAMPLEPACKET);
 
     if (SAI_STATUS_SUCCESS !=
         (status =
@@ -504,7 +485,7 @@ static sai_status_t mlnx_create_samplepacket_session(_Out_ sai_object_id_t      
         goto cleanup;
     }
 
-    SX_LOG_NTC("Created SAI samplepacket obj id: %" PRId64 "\n", *sai_samplepacket_obj_id);
+    MLNX_LOG_OID_CREATED(*sai_samplepacket_obj_id);
 
     status = SAI_STATUS_SUCCESS;
 
@@ -523,6 +504,8 @@ static sai_status_t mlnx_remove_samplepacket_session(_In_ const sai_object_id_t 
     bool                port_associated = false;
 
     SX_LOG_ENTER();
+
+    MLNX_LOG_OID_REMOVE(sai_samplepacket_obj_id);
 
     if (SAI_STATUS_SUCCESS !=
         (status =
@@ -563,8 +546,6 @@ static sai_status_t mlnx_remove_samplepacket_session(_In_ const sai_object_id_t 
         goto cleanup;
     }
 
-    SX_LOG_NTC("Removed samplepacket obj id %" PRId64 "\n", sai_samplepacket_obj_id);
-
     status = SAI_STATUS_SUCCESS;
 
 cleanup:
@@ -577,17 +558,8 @@ static sai_status_t mlnx_set_samplepacket_attribute(_In_ const sai_object_id_t  
                                                     _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = sai_samplepacket_obj_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    sai_status_t           status = SAI_STATUS_FAILURE;
 
-    SX_LOG_ENTER();
-
-    samplepacket_key_to_str(sai_samplepacket_obj_id, key_str);
-
-    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_SAMPLEPACKET, samplepacket_vendor_attribs, attr);
-
-    SX_LOG_EXIT();
-    return status;
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_SAMPLEPACKET, attr);
 }
 
 static sai_status_t mlnx_get_samplepacket_attribute(_In_ const sai_object_id_t sai_samplepacket_obj_id,
@@ -595,23 +567,8 @@ static sai_status_t mlnx_get_samplepacket_attribute(_In_ const sai_object_id_t s
                                                     _Inout_ sai_attribute_t   *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = sai_samplepacket_obj_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    sai_status_t           status = SAI_STATUS_FAILURE;
 
-    SX_LOG_ENTER();
-
-    samplepacket_key_to_str(sai_samplepacket_obj_id, key_str);
-
-    status =
-        sai_get_attributes(&key,
-                           key_str,
-                           SAI_OBJECT_TYPE_SAMPLEPACKET,
-                           samplepacket_vendor_attribs,
-                           attr_count,
-                           attr_list);
-
-    SX_LOG_EXIT();
-    return status;
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_SAMPLEPACKET, attr_count, attr_list);
 }
 
 sai_status_t mlnx_samplepacket_log_set(sx_verbosity_level_t level)

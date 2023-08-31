@@ -22,7 +22,7 @@
  * @brief   This module defines SAI Port interface
  */
 
-#if !defined(__SAIPORT_H_)
+#if !defined (__SAIPORT_H_)
 #define __SAIPORT_H_
 
 #include <saitypes.h>
@@ -53,26 +53,6 @@ typedef enum _sai_port_type_t
 } sai_port_type_t;
 
 /**
- * @brief Attribute data for #SAI_SWITCH_ATTR_PORT_MODULE_PLUG_EVENT_NOTIFY
- */
-typedef enum _sai_port_module_status_t
-{
-    SAI_PORT_MODULE_STATUS_INITIALIZING,
-
-    SAI_PORT_MODULE_STATUS_PLUGGED,
-
-    SAI_PORT_MODULE_STATUS_UNPLUGGED,
-
-    SAI_PORT_MODULE_STATUS_PLUGGED_WITH_ERROR,
-
-    SAI_PORT_MODULE_STATUS_PLUGGED_DISABLED,
-
-    SAI_PORT_MODULE_STATUS_UNKNOWN,
-
-    SAI_PORT_MODULE_STATUS_RESERVED_E,
-} sai_port_module_status_t;
-
-/**
  * @brief Attribute data for #SAI_PORT_ATTR_OPER_STATUS
  */
 typedef enum _sai_port_oper_status_t
@@ -95,22 +75,6 @@ typedef enum _sai_port_oper_status_t
 } sai_port_oper_status_t;
 
 /**
- * @brief Defines status of module
- */
-typedef struct _sai_port_module_event_notification_t
-{
-    /**
-     * @brief Port id.
-     *
-     * @objects SAI_OBJECT_TYPE_PORT
-     */
-    sai_object_id_t port_id;
-
-    sai_port_module_status_t module_state;
-
-} sai_port_module_event_notification_t;
-
-/**
  * @brief Defines the operational status of the port
  */
 typedef struct _sai_port_oper_status_notification_t
@@ -122,21 +86,10 @@ typedef struct _sai_port_oper_status_notification_t
      */
     sai_object_id_t port_id;
 
+    /** Port operational status */
     sai_port_oper_status_t port_state;
 
 } sai_port_oper_status_notification_t;
-
-typedef struct _sai_port_maf_notification_t
-{
-    /**
-     * @brief Port id.
-     *
-     * @objects SAI_OBJECT_TYPE_PORT, SAI_OBJECT_TYPE_BRIDGE_PORT, SAI_OBJECT_TYPE_LAG
-     */
-    sai_object_id_t port_id;
-
-    bool is_maf;
-} sai_port_maf_notification_t;
 
 /**
  * @brief Attribute data for #SAI_PORT_ATTR_GLOBAL_FLOW_CONTROL_MODE
@@ -237,14 +190,8 @@ typedef enum _sai_port_breakout_mode_type_t
  */
 typedef enum _sai_port_fec_mode_t
 {
-    /** Auto FEC */
-    SAI_PORT_FEC_MODE_AUTO,
-
     /** No FEC */
     SAI_PORT_FEC_MODE_NONE,
-
-    /** FEC On */
-    SAI_PORT_FEC_MODE_ON,
 
     /** Enable RS-FEC - 25G, 50G, 100G ports. The specific RS-FEC mode will be automatically determined. */
     SAI_PORT_FEC_MODE_RS,
@@ -452,22 +399,6 @@ typedef enum _sai_port_connector_failover_mode_t
     /** Configure Failover mode on secondary port */
     SAI_PORT_CONNECTOR_FAILOVER_MODE_SECONDARY
 } sai_port_connector_failover_mode_t;
-
-/**
- * @brief Attribute data for #SAI_PORT_ATTR_TECHNOLOGY
- */
-typedef enum _sai_port_technology_t
-{
-    /** ETH port */
-    SAI_PORT_TECHNOLOGY_ETHERNET,
-
-    /** IBV0 Port */
-    SAI_PORT_TECHNOLOGY_IBV0,
-
-    /** IBVE Port */
-    SAI_PORT_TECHNOLOGY_IBVE,
-
-} sai_port_technology_t;
 
 /**
  * @brief Attribute data for #SAI_PORT_ATTR_MDIX_MODE_STATUS
@@ -1031,7 +962,7 @@ typedef enum _sai_port_attr_t
      *
      * @type sai_port_fec_mode_t
      * @flags CREATE_AND_SET
-     * @default SAI_PORT_FEC_MODE_AUTO
+     * @default SAI_PORT_FEC_MODE_NONE
      * @validonly SAI_PORT_ATTR_USE_EXTENDED_FEC == false
      */
     SAI_PORT_ATTR_FEC_MODE,
@@ -1963,89 +1894,6 @@ typedef enum _sai_port_attr_t
     SAI_PORT_ATTR_SYSTEM_PORT,
 
     /**
-     * @brief Technology of the port (ETH,IBV0,IBVE)
-     *
-     * @type sai_port_technology_t
-     * @flags CREATE_ONLY
-     * @default SAI_PORT_TECHNOLOGY_ETHERNET
-     */
-    SAI_PORT_ATTR_TECHNOLOGY,
-
-    /**
-     * @brief Query of supported HW lanes by bitmap.
-     * (bit 0 - 1, bit 1 - 2, bit 2 - 4, bit 3 - 8, bit 4 - 12).
-     *
-     * @type sai_uint8_t
-     * @flags READ_ONLY
-     */
-    SAI_PORT_ATTR_CUSTOM_INFINIBAND_SUPPORTED_HW_LANES,
-
-    /**
-     * @brief Query of operational width.
-     * (1, 2, 4).
-     *
-     * @type sai_uint8_t
-     * @flags READ_ONLY
-     */
-    SAI_PORT_ATTR_CUSTOM_INFINIBAND_OPER_LANES,
-
-    /**
-     * @brief Query of admin width by bitmap.
-     * (bit 0 - 1, bit 1 - 2, bit 2 - 4, bit 3 - 8, bit 4 - 12).
-     *
-     * @type sai_uint8_t
-     * @flags CREATE_AND_SET
-     * @default 0
-     */
-    SAI_PORT_ATTR_CUSTOM_INFINIBAND_ADMIN_LANES,
-
-    /**
-     * @brief Query of Virtual Lanes supported on this port.
-     * (1, 2... 7).
-     *
-     * @type sai_uint8_t
-     * @flags READ_ONLY
-     */
-    SAI_PORT_ATTR_CUSTOM_INFINIBAND_SUPPORTED_VL,
-
-    /**
-     * @brief Virtual Lanes enabled by the local admin on this port
-     * (1, 2... 7).
-     *
-     * @type sai_uint8_t
-     * @flags READ_ONLY
-     */
-    SAI_PORT_ATTR_CUSTOM_INFINIBAND_OPER_VL,
-
-    /**
-     * @brief Virtual Lanes enabled by the local admin on this port
-     * (1, 2... 7).
-     *
-     * @type sai_uint8_t
-     * @flags CREATE_AND_SET
-     * @default 0
-     */
-    SAI_PORT_ATTR_CUSTOM_INFINIBAND_ADMIN_VL,
-
-    /**
-     * @brief The id of the subnet (0...7)
-     * IB subnet this interface is part of (switch id == IB subnet).
-     *
-     * @type sai_uint8_t
-     * @flags CREATE_AND_SET
-     * @default 0
-     */
-    SAI_PORT_ATTR_CUSTOM_INFINIBAND_IB_SUBNET,
-
-    /**
-     * @brief The max MTU supported
-     *
-     * @type sai_uint32_t
-     * @flags READ_ONLY
-     */
-    SAI_PORT_ATTR_CUSTOM_INFINIBAND_MAX_MTU,
-
-    /**
      * @brief FEC mode auto-negotiation override status
      *
      * If set to true, any auto-negotiated FEC mode will be
@@ -2249,78 +2097,68 @@ typedef enum _sai_port_attr_t
     SAI_PORT_ATTR_PFC_TC_DLR_INTERVAL,
 
     /**
-     * @brief Enable or disable BER monitor for specific port
+     * @brief Query link-training support
+     *
+     * @type bool
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_SUPPORTED_LINK_TRAINING_MODE,
+
+    /**
+     * @brief List of port's PMD lanes rx signal detect
+     *
+     * @type sai_port_lane_latch_status_list_t
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_RX_SIGNAL_DETECT,
+
+    /**
+     * @brief List of port's PMD lanes rx lock status
+     *
+     * @type sai_port_lane_latch_status_list_t
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_RX_LOCK_STATUS,
+
+    /**
+     * @brief Port's PCS RX Link Status
+     *
+     * @type sai_latch_status_t
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_PCS_RX_LINK_STATUS,
+
+    /**
+     * @brief List of port's FEC lanes alignment marker lock
+     *
+     * @type sai_port_lane_latch_status_list_t
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_FEC_ALIGNMENT_LOCK,
+
+    /**
+     * @brief Fabric port isolation setting.
+     *
+     * true: The link may be enabled in serdes level and the
+     * MAC level, but the link partner will not use
+     * it for traffic distribution.
+     * false: Undo the isolation operation.
+     * This attribute is for fabric links only.
      *
      * @type bool
      * @flags CREATE_AND_SET
      * @default false
      */
-    SAI_PORT_ATTR_SIGNAL_DEGRADE,
+    SAI_PORT_ATTR_FABRIC_ISOLATE,
 
     /**
-     * @brief Set port admin state down do to signal degrade event
+     * @brief Query the maximum number of symbols with errors that can be
+     * detected by the current FEC code (per FEC codeword).
      *
-     * @type bool
-     * @flags CREATE_AND_SET
-     * @default false
-     */
-    SAI_PORT_ATTR_DOWN_BY_SIGNAL_DEGRADE,
-
-    /**
-     * @brief Get port link status opcode and status message.
-     *
-     * @type sai_s8_list_t
+     * @type sai_uint32_t
      * @flags READ_ONLY
      */
-    SAI_PORT_ATTR_LINK_DIAGNOSTIC,
-
-    /**
-     * @brief Return if port is a fabric network manager port
-     *
-     * @type bool
-     * @flags READ_ONLY
-     */
-    SAI_PORT_ATTR_FNM_PORT,
-
-    /**
-     * @brief Aggregated port data - plane and Aport
-     *
-     * @type sai_aggregated_port_data_t
-     * @flags CREATE_AND_SET | MANDATORY_ON_CREATE
-     */
-    SAI_PORT_ATTR_AGGREGATE_PORT_DATA,
-
-    /**
-     * @brief Port protocol can be ETH, IB or NVLink5
-     *
-     * @type sai_int32_t
-     * @flags READ_ONLY
-     */
-    SAI_PORT_ATTR_PROTOCOL,
-
-    /**
-     * @brief Connectivity Type, describes the internal wiring on the port
-     *
-     * @type sai_int32_t
-     * @flags READ_ONLY
-     */
-    SAI_PORT_ATTR_CONNECTION_TYPE,
-
-    /**
-     * @brief Mission Port as FNM (Fabric Network Management)
-     *
-     * @type bool
-     * @flags READ_ONLY
-     */
-    SAI_PORT_ATTR_MAF,
-
-    /**
-     * @brief Remote ASIC ID, used for internal connections
-     *
-     * @type sai_int32_t
-     * @flags READ_ONLY
-     */
-    SAI_PORT_ATTR_REMOTE_ID,
+    SAI_PORT_ATTR_MAX_FEC_SYMBOL_ERRORS_DETECTABLE,
 
     /**
      * @brief End of attributes
@@ -2920,6 +2758,77 @@ typedef enum _sai_port_stat_t
     /** Fabric port stat out data units */
     SAI_PORT_STAT_IF_OUT_FABRIC_DATA_UNITS,
 
+    /**
+     * @brief Port FEC codeword symbol error counters.
+     *
+     * This set of counters corresponds to number of symbol errors in each FEC
+     * codeword received on the port.
+     *
+     * The number of symbol errors that may be detected is dependent on the type
+     * of FEC in use. For instance, RS-528 FEC supports detection of up to 7
+     * symbol errors, while RS-544 FEC supports detection of up to 15 symbol
+     * errors. The maximum number of errors that can be detected by the port's
+     * current FEC mode may be retrieved via the
+     * SAI_PORT_ATTR_MAX_FEC_SYMBOL_ERRORS_DETECTABLE port attribute. If the
+     * codeword contains more than SAI_PORT_ATTR_MAX_FEC_SYMBOL_ERRORS_DETECTABLE,
+     * the errors are placed in the next higher counter (so for the examples
+     * above, SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S8 would be used for
+     * greater than 7 symbol errors when RS-528 FEC is used, and
+     * SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S16 for greater than 15 symbol
+     * errors when using RS-544).
+     */
+
+    /** Count of FEC codewords with no symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S0,
+
+    /** Count of FEC codewords with 1 symbol error. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S1,
+
+    /** Count of FEC codewords with 2 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S2,
+
+    /** Count of FEC codewords with 3 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S3,
+
+    /** Count of FEC codewords with 4 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S4,
+
+    /** Count of FEC codewords with 5 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S5,
+
+    /** Count of FEC codewords with 6 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S6,
+
+    /** Count of FEC codewords with 7 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S7,
+
+    /** Count of FEC codewords with 8 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S8,
+
+    /** Count of FEC codewords with 9 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S9,
+
+    /** Count of FEC codewords with 10 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S10,
+
+    /** Count of FEC codewords with 11 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S11,
+
+    /** Count of FEC codewords with 12 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S12,
+
+    /** Count of FEC codewords with 13 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S13,
+
+    /** Count of FEC codewords with 14 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S14,
+
+    /** Count of FEC codewords with 15 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S15,
+
+    /** Count of FEC codewords with 16 symbol errors. */
+    SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S16,
+
     /** Port stat in drop reasons range start */
     SAI_PORT_STAT_IN_DROP_REASON_RANGE_BASE = 0x00001000,
 
@@ -2980,71 +2889,6 @@ typedef enum _sai_port_stat_t
     /** Port stat out drop reasons range end */
     SAI_PORT_STAT_OUT_DROP_REASON_RANGE_END = 0x00002fff,
 
-    /** SAI port state IB range start */
-    SAI_PORT_STAT_INFINIBAND_STATE_RANGE_BASE = 0x00003000,
-
-    /** SAI port state IB logical */
-    SAI_PORT_STAT_INFINIBAND_LOGICAL_STATE = SAI_PORT_STAT_INFINIBAND_STATE_RANGE_BASE,
-
-    /** SAI port state IB physical */
-    SAI_PORT_STAT_INFINIBAND_PHYSICAL_STATE,
-
-    /** SAI port state operational MTU */
-    SAI_PORT_STAT_INFINIBAND_MTU_OPER,
-
-    /** SAI port state operational number of lanes */
-    SAI_PORT_STAT_INFINIBAND_LANES_OPER,
-
-    /** SAI port state operational VL */
-    SAI_PORT_STAT_INFINIBAND_VL_OPER,
-
-    /** SAI port state operational speed */
-    SAI_PORT_STAT_INFINIBAND_SPEED_OPER,
-
-    /** SAI port state operational speed by lanes */
-    SAI_PORT_STAT_INFINIBAND_SPEED_OPER_BY_LANES,
-
-    /** SAI port state IB range end */
-    SAI_PORT_STAT_INFINIBAND_STATE_RANGE_END = 0x00003fff,
-
-    /** SAI port IB stat start */
-    SAI_PORT_STAT_INFINIBAND_IF_RANGE_BASE = 0x00004000,
-
-    /** SAI port IB stat - The number of in-octets */
-    SAI_PORT_STAT_INFINIBAND_IF_IN_OCTETS_EXT = SAI_PORT_STAT_INFINIBAND_IF_RANGE_BASE,
-
-    /** SAI port IB stat - The number of in-packets */
-    SAI_PORT_STAT_INFINIBAND_IF_IN_PKTS_EXT,
-
-    /** SAI port IB stat - The number of out-octets */
-    SAI_PORT_STAT_INFINIBAND_IF_OUT_OCTETS_EXT,
-
-    /** SAI port IB stat - The number of out-packets */
-    SAI_PORT_STAT_INFINIBAND_IF_OUT_PKTS_EXT,
-
-    /** SAI port IB stat - The number of ticks during which the port had data to transmit but no data was sent */
-    SAI_PORT_STAT_INFINIBAND_IF_OUT_WAIT,
-
-    /** SAI port IB stat - Total number of minor link errors detected on one or more physical lanes. */
-    SAI_PORT_STAT_INFINIBAND_PC_ERR_SYM_F,
-
-    /** SAI port IB stat - Total number of packets containing errors that were received on the port */
-    SAI_PORT_STAT_INFINIBAND_PC_ERR_RCV_F,
-
-    /** SAI port IB stat - Number of incoming Virtual Lane 15 packets dropped because of resource limitations in the port */
-    SAI_PORT_STAT_INFINIBAND_PC_VL15_DROPPED_F,
-
-    /** SAI port IB stat - Total number of outbound packets discarded by the port when the port is down or congested */
-    SAI_PORT_STAT_INFINIBAND_PC_XMT_DISCARDS_F,
-
-    /** SAI port IB stat - Total number of packets not transmitted from the switch physical port */
-    SAI_PORT_STAT_INFINIBAND_ERR_XMTCONSTR_F,
-
-    /** SAI port IB stat max value - every new IB port counter should be inserted above this */
-    SAI_PORT_STAT_INFINIBAND_IF_RANGE_MAX,
-
-    /** SAI port IB stat end */
-    SAI_PORT_STAT_INFINIBAND_IF_RANGE_END = 0x00004fff,
 } sai_port_stat_t;
 
 /**
@@ -3158,20 +3002,6 @@ typedef sai_status_t (*sai_clear_port_all_stats_fn)(
         _In_ sai_object_id_t port_id);
 
 /**
- * @brief Port module event notification
- *
- * Passed as a parameter into sai_initialize_switch()
- *
- * @count data[count]
- *
- * @param[in] count Number of notifications
- * @param[in] data Array of module event data
- */
-typedef void (*sai_port_module_plug_event_notification_fn)(
-        _In_ uint32_t count,
-        _In_ const sai_port_module_event_notification_t *data);
-
-/**
  * @brief Port state change notification
  *
  * Passed as a parameter into sai_initialize_switch()
@@ -3184,20 +3014,6 @@ typedef void (*sai_port_module_plug_event_notification_fn)(
 typedef void (*sai_port_state_change_notification_fn)(
         _In_ uint32_t count,
         _In_ const sai_port_oper_status_notification_t *data);
-
-/**
- * @brief Port signal degrade notification
- *
- * Passed as a parameter into sai_initialize_switch()
- *
- * @count port_id[count]
- *
- * @param[in] count Number of notifications
- * @param[in] port_id Port object id
- */
-typedef void (*sai_port_signal_degrade_notification_fn)(
-        _In_ uint32_t count,
-        _In_ const sai_object_id_t *port_id);
 
 /**
  * @brief List of Port buffer pool attributes

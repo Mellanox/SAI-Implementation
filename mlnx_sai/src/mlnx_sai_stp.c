@@ -64,8 +64,14 @@ static const sai_vendor_attribute_entry_t stp_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t          mlnx_stp_obj_type_info =
-{ stp_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
+static size_t stp_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+{
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+
+    return snprintf(str, max_len, "[mlnx_mstp_inst_db[%u]]", mlnx_oid.id.u32 - SX_MSTP_INST_ID_MIN);
+}
+const mlnx_obj_type_attrs_info_t mlnx_stp_obj_type_info =
+{ stp_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY(), stp_info_print};
 static sai_status_t mlnx_stp_port_stp_id_get(_In_ const sai_object_key_t   *key,
                                              _Inout_ sai_attribute_value_t *value,
                                              _In_ uint32_t                  attr_index,
@@ -109,21 +115,14 @@ static const sai_vendor_attribute_entry_t stp_port_vendor_attribs[] = {
 static const mlnx_attr_enum_info_t        stp_port_enum_info[] = {
     [SAI_STP_PORT_ATTR_STATE] = ATTR_ENUM_VALUES_ALL()
 };
-const mlnx_obj_type_attrs_info_t          mlnx_stp_port_obj_type_info =
-{ stp_port_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(stp_port_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
-static void stp_id_to_str(_In_ sai_object_id_t sai_stp_id, _Out_ char *key_str)
+static size_t stp_port_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
 {
-    uint32_t     data;
-    sai_status_t status;
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
 
-    status = mlnx_object_to_type(sai_stp_id, SAI_OBJECT_TYPE_STP,
-                                 &data, NULL);
-    if (SAI_ERR(status)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid STP instance id");
-    } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "STP instance id [%u]", (sx_mstp_inst_id_t)data);
-    }
+    return snprintf(str, max_len, "[log_port:0x%X, stp_inst_id:%u]", mlnx_oid.id.u32, mlnx_oid.ext.stp.id);
 }
+const mlnx_obj_type_attrs_info_t mlnx_stp_port_obj_type_info =
+{ stp_port_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(stp_port_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), stp_port_info_print};
 
 /* Generate instance id (will be passed to SDK API) */
 static sai_status_t create_stp_id(_Out_ sx_mstp_inst_id_t* sx_stp_id)
@@ -191,17 +190,11 @@ static sai_status_t mlnx_create_stp(_Out_ sai_object_id_t      *sai_stp_id,
 
     SX_LOG_ENTER();
 
-    if (sai_stp_id == NULL) {
-        SX_LOG_ERR("NULL object id\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_STP,
-                                    stp_vendor_attribs, SAI_COMMON_API_CREATE);
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_STP, sai_stp_id);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_STP);
 
     assert(NULL != g_sai_db_ptr);
     sai_db_write_lock();
@@ -235,6 +228,8 @@ static sai_status_t mlnx_create_stp(_Out_ sai_object_id_t      *sai_stp_id,
         goto out;
     }
 
+    MLNX_LOG_OID_CREATED(*sai_stp_id);
+
 out:
     sai_db_unlock();
     SX_LOG_EXIT();
@@ -259,6 +254,8 @@ static sai_status_t mlnx_remove_stp(_In_ sai_object_id_t sai_stp_id)
 
     SX_LOG_ENTER();
 
+    MLNX_LOG_OID_REMOVE(sai_stp_id);
+
     status = mlnx_object_to_type(sai_stp_id, SAI_OBJECT_TYPE_STP,
                                  &data, NULL);
     if (SAI_ERR(status)) {
@@ -267,8 +264,6 @@ static sai_status_t mlnx_remove_stp(_In_ sai_object_id_t sai_stp_id)
     }
 
     sx_stp_id = (sx_mstp_inst_id_t)data;
-
-    SX_LOG_NTC("Remove STP number [%u]\n", sx_stp_id);
 
     assert(NULL != g_sai_db_ptr);
     sai_db_read_lock();
@@ -321,20 +316,8 @@ static sai_status_t mlnx_remove_stp(_In_ sai_object_id_t sai_stp_id)
 sai_status_t mlnx_set_stp_attribute(_In_ sai_object_id_t sai_stp_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = {.key.object_id = sai_stp_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    sai_status_t           status;
 
-    SX_LOG_ENTER();
-
-    stp_id_to_str(sai_stp_id, key_str);
-
-    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_STP, stp_vendor_attribs, attr);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_STP, attr);
 }
 
 /**
@@ -351,20 +334,8 @@ static sai_status_t mlnx_get_stp_attribute(_In_ const sai_object_id_t sai_stp_id
                                            _Inout_ sai_attribute_t   *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = sai_stp_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    sai_status_t           status;
 
-    SX_LOG_ENTER();
-
-    stp_id_to_str(sai_stp_id, key_str);
-
-    status = sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_STP, stp_vendor_attribs, attr_count, attr_list);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_STP, attr_count, attr_list);
 }
 
 /* vlanlist getter */
@@ -563,21 +534,6 @@ static sai_status_t mlnx_stp_bridge_id_get(_In_ const sai_object_key_t   *key,
  * SAI STP Port
  */
 
-static void stp_port_id_to_str(_In_ sai_object_id_t sai_stp_port_id, _Out_ char *key_str)
-{
-    mlnx_object_id_t stp_port;
-    sai_status_t     status;
-
-    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_STP_PORT, sai_stp_port_id, &stp_port);
-    if (SAI_ERR(status)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid STP Port id");
-    } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "STP Port (%u, 0x%x)",
-                 stp_port.ext.stp.id,
-                 stp_port.id.log_port_id);
-    }
-}
-
 static sai_status_t sai_stp_port_state_validate(sai_stp_port_state_t state)
 {
     switch (state) {
@@ -623,8 +579,6 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
                                          _In_ const sai_attribute_t *attr_list)
 {
     uint32_t                     stp_index, port_index, state_index;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    char                         key_str[MAX_KEY_STR_LEN];
     const sai_attribute_value_t *stp, *port, *state;
     sx_mstp_inst_port_state_t    sx_port_state;
     mlnx_object_id_t             stp_port_obj_id;
@@ -634,19 +588,11 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
 
     SX_LOG_ENTER();
 
-    if (stp_port_id == NULL) {
-        SX_LOG_ERR("NULL object id\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_STP_PORT,
-                                    stp_port_vendor_attribs, SAI_COMMON_API_CREATE);
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_STP_PORT, stp_port_id);
     if (SAI_ERR(status)) {
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_STP_PORT, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create STP Port, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_STP_PORT);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_STP_PORT_ATTR_STP, &stp, &stp_index);
     assert(status == SAI_STATUS_SUCCESS);
@@ -699,8 +645,7 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
         goto out;
     }
 
-    stp_port_id_to_str(*stp_port_id, key_str);
-    SX_LOG_NTC("Created STP Port %s\n", key_str);
+    MLNX_LOG_OID_CREATED(*stp_port_id);
 
     bridge_port->stps++;
 
@@ -724,6 +669,8 @@ static sai_status_t mlnx_remove_stp_port(_In_ sai_object_id_t stp_port_id)
     sai_status_t        status;
 
     SX_LOG_ENTER();
+
+    MLNX_LOG_OID_REMOVE(stp_port_id);
 
     status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_STP_PORT, stp_port_id, &stp_port_obj_id);
     if (SAI_ERR(status)) {
@@ -982,20 +929,8 @@ out:
 static sai_status_t mlnx_set_stp_port_attribute(_In_ sai_object_id_t stp_port_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = {.key.object_id = stp_port_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    sai_status_t           status;
 
-    SX_LOG_ENTER();
-
-    stp_port_id_to_str(stp_port_id, key_str);
-
-    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_STP_PORT, stp_port_vendor_attribs, attr);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_STP_PORT, attr);
 }
 
 /**
@@ -1012,21 +947,8 @@ static sai_status_t mlnx_get_stp_port_attribute(_In_ sai_object_id_t     stp_por
                                                 _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = stp_port_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    sai_status_t           status;
 
-    SX_LOG_ENTER();
-
-    stp_port_id_to_str(stp_port_id, key_str);
-
-    status =
-        sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_STP_PORT, stp_port_vendor_attribs, attr_count, attr_list);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_STP_PORT, attr_count, attr_list);
 }
 
 bool mlnx_stp_is_initialized()

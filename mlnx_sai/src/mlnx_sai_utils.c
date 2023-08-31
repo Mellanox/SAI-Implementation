@@ -28,6 +28,7 @@
 #else
 #include <Ws2tcpip.h>
 #endif
+#include <errno.h>
 
 #undef  __MODULE__
 #define __MODULE__ SAI_UTILS
@@ -46,8 +47,7 @@ extern const sai_u32_list_t              mlnx_sai_hostif_table_valid_obj_types[]
 extern const sai_u32_list_t              mlnx_sai_tunnel_valid_obj_types[];
 extern const sai_u32_list_t              mlnx_sai_acl_entry_valid_obj_types[];
 extern const sai_u32_list_t              mlnx_sai_valid_obj_types[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END];
-extern const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[];
-extern const uint32_t                    mlnx_obj_types_info_arr_size;
+extern const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[SAI_OBJECT_TYPE_MAX];
 static sai_status_t sai_vendor_attr_index_find(_In_ const sai_attr_id_t                 attr_id,
                                                _In_ const sai_vendor_attribute_entry_t *vendor_attr,
                                                _Out_ uint32_t                          *index);
@@ -142,12 +142,15 @@ static sai_status_t sai_attribute_valid_condition_check(_In_ const sai_attr_meta
 static bool sai_attribute_is_acl_field_or_action(_In_ const sai_attr_metadata_t *meta_data);
 static const sai_attr_metadata_t* mlnx_sai_attr_metadata_get_impl(_In_ sai_object_type_t object_type,
                                                                   _In_ sai_attr_id_t     attr_id);
-
+static sai_status_t sai_qos_map_to_str_oid(_In_ sai_object_id_t       qos_map_id,
+                                           _In_ sai_attribute_value_t value,
+                                           _In_ uint32_t              max_length,
+                                           _Out_ char                *value_str);
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 
 static const mlnx_obj_type_attrs_info_t* mlnx_obj_type_attr_info_get(_In_ sai_object_type_t object_type)
 {
-    if (mlnx_obj_types_info_arr_size <= (uint32_t)object_type) {
+    if (SAI_OBJECT_TYPE_MAX <= (uint32_t)object_type) {
         return NULL;
     }
 
@@ -335,6 +338,27 @@ static sai_status_t mlnx_attr_enum_supported_values_get(_In_ const sai_attr_meta
     return status;
 }
 
+sai_status_t wait_for_sem(sem_t *sem_to_wait, uint32_t wait_seconds)
+{
+    struct timespec timeout;
+
+    SX_LOG_ENTER();
+    if (-1 == clock_gettime(CLOCK_REALTIME, &timeout)) {
+        SX_LOG_ERR("Failed to get current time - %s\n", strerror(errno));
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+    timeout.tv_sec += wait_seconds;
+    if (-1 == sem_timedwait(sem_to_wait, &timeout)) {
+        SX_LOG_ERR("Failed to lock semaphore - %s\n", strerror(errno));
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_sai_query_attribute_enum_values_capability_impl(_In_ sai_object_id_t    switch_id,
                                                                   _In_ sai_object_type_t  object_type,
                                                                   _In_ sai_attr_id_t      attr_id,
@@ -378,9 +402,15 @@ sai_status_t mlnx_sai_query_attribute_enum_values_capability_impl(_In_ sai_objec
     if (!is_implemented) {
         enum_values_capability->count = 0;
     } else {
-        status = mlnx_attr_enum_supported_values_get(attr_metadata,
-                                                     &obj_type_attr_info->enums_info,
-                                                     enum_values_capability);
+        /* TODO : Remove when per tunnel type query is supported #3253194, currently P2P causes issues with EVPN at Sonic */
+        if ((SAI_OBJECT_TYPE_TUNNEL == object_type) && (SAI_TUNNEL_ATTR_PEER_MODE == attr_id)) {
+            const int32_t cap[] = { SAI_TUNNEL_PEER_MODE_P2MP };
+            status = mlnx_fill_s32list(cap, 1, enum_values_capability);
+        } else {
+            status = mlnx_attr_enum_supported_values_get(attr_metadata,
+                                                         &obj_type_attr_info->enums_info,
+                                                         enum_values_capability);
+        }
         if (SAI_ERR(status)) {
             if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
                 status = SAI_STATUS_BUFFER_OVERFLOW;
@@ -425,19 +455,17 @@ sai_status_t mlnx_sai_query_stats_capability_impl(_In_ sai_object_id_t          
 
     object_type_info = mlnx_obj_type_attr_info_get(object_type);
     if (NULL == object_type_info) {
-        SX_LOG_ERR("Failed to get object type info for object type - %d\n", object_type);
-        SX_LOG_EXIT();
-        return SAI_STATUS_FAILURE;
-    }
-
-    if (object_type_info->stats_capability.capability_fn) {
-        status = object_type_info->stats_capability.capability_fn(stats_capability);
-    } else if (0 == object_type_info->stats_capability.count) {
         stats_capability->count = 0;
     } else {
-        status = mlnx_fill_saistatcapabilitylist(object_type_info->stats_capability.info,
-                                                 object_type_info->stats_capability.count,
-                                                 stats_capability);
+        if (object_type_info->stats_capability.capability_fn) {
+            status = object_type_info->stats_capability.capability_fn(stats_capability);
+        } else if (0 == object_type_info->stats_capability.count) {
+            stats_capability->count = 0;
+        } else {
+            status = mlnx_fill_saistatcapabilitylist(object_type_info->stats_capability.info,
+                                                     object_type_info->stats_capability.count,
+                                                     stats_capability);
+        }
     }
 
     if (SAI_ERR(status)) {
@@ -763,7 +791,7 @@ static sai_status_t sai_attribute_allowed_objects_validate(_In_ const sai_attr_m
                        meta_data->attridname, SAI_TYPE_STR(value_object_type), allwed_object_types_str);
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
         }
-        /* coverity[overrun-local:SUPPRESS] */
+
         object_types_present[value_object_type] = true;
     }
 
@@ -1598,6 +1626,50 @@ static const sai_attr_metadata_t* mlnx_sai_attr_metadata_get_impl(_In_ sai_objec
     return sai_metadata_get_attr_metadata(object_type, attr_id);
 }
 
+sai_status_t check_attribs_on_create_without_oid(_In_ uint32_t               attr_count,
+                                                 _In_ const sai_attribute_t *attr_list,
+                                                 _In_ sai_object_type_t      object_type)
+{
+    sai_status_t status;
+
+    if ((object_type >= SAI_OBJECT_TYPE_MAX) || (object_type < 0)) {
+        SX_LOG_ERR("Unsupported object_type [%d]\n", object_type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!mlnx_obj_types_info[object_type]) {
+        SX_LOG_ERR("Missing mlnx_obj_types_info[%s]\n", SAI_TYPE_STR(object_type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!mlnx_obj_types_info[object_type]->vendor_data) {
+        SX_LOG_ERR("Missing vendor_data for %s\n", SAI_TYPE_STR(object_type));
+        return SAI_STATUS_FAILURE;
+    }
+    const sai_vendor_attribute_entry_t *vendor_data = mlnx_obj_types_info[object_type]->vendor_data;
+
+    status = check_attribs_metadata(attr_count, attr_list, object_type, vendor_data, SAI_COMMON_API_CREATE);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed attributes check\n");
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t check_attribs_on_create(_In_ uint32_t               attr_count,
+                                     _In_ const sai_attribute_t *attr_list,
+                                     _In_ sai_object_type_t      object_type,
+                                     _In_ sai_object_id_t       *oid)
+{
+    if (!oid) {
+        SX_LOG_ERR("NULL OID\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    return check_attribs_on_create_without_oid(attr_count, attr_list, object_type);
+}
+
 sai_status_t check_attribs_metadata(_In_ uint32_t                            attr_count,
                                     _In_ const sai_attribute_t              *attr_list,
                                     _In_ sai_object_type_t                   object_type,
@@ -1813,7 +1885,11 @@ static sai_status_t set_dispatch_attrib_handler(_In_ const sai_attribute_t      
         return SAI_STATUS_ATTR_NOT_IMPLEMENTED_0;
     }
 
-    sai_attr_metadata_to_str(meta_data, &attr->value, MAX_VALUE_STR_LEN, value_str);
+    if (SAI_ATTR_VALUE_TYPE_QOS_MAP_LIST == meta_data->attrvaluetype) {
+        sai_qos_map_to_str_oid(key->key.object_id, attr->value, MAX_VALUE_STR_LEN, value_str);
+    } else {
+        sai_attr_metadata_to_str(meta_data, &attr->value, MAX_VALUE_STR_LEN, value_str);
+    }
 
     /* lower log level for route entry next hop updated often in Sonic */
 #ifdef ACS_OS
@@ -1926,7 +2002,12 @@ static sai_status_t get_dispatch_attribs_handler(_In_ uint32_t                  
             SX_LOG_EXIT();
             return status;
         }
-        sai_attr_metadata_to_str(meta_data, &attr_list[ii].value, MAX_VALUE_STR_LEN, value_str);
+
+        if (SAI_ATTR_VALUE_TYPE_QOS_MAP_LIST == meta_data->attrvaluetype) {
+            sai_qos_map_to_str_oid(key->key.object_id, attr_list[ii].value, MAX_VALUE_STR_LEN, value_str);
+        } else {
+            sai_attr_metadata_to_str(meta_data, &attr_list[ii].value, MAX_VALUE_STR_LEN, value_str);
+        }
 
         SX_LOG(log_level, "Got #%u, %s, key:%s, val:%s\n", ii, short_attr_name, key_str, value_str);
     }
@@ -1993,75 +2074,111 @@ sai_status_t find_attrib_in_list(_In_ uint32_t                       attr_count,
     return SAI_STATUS_ITEM_NOT_FOUND;
 }
 
-sai_status_t sai_set_attribute(_In_ const sai_object_key_t             *key,
-                               _In_ const char                         *key_str,
-                               _In_ sai_object_type_t                   object_type,
-                               _In_ const sai_vendor_attribute_entry_t *functionality_vendor_attr,
-                               _In_ const sai_attribute_t              *attr)
+sai_status_t sai_set_attribute(_In_ const sai_object_key_t *key,
+                               _In_ sai_object_type_t       object_type,
+                               _In_ const sai_attribute_t  *attr)
 {
     sai_status_t status;
+    char         key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
+    if (!key) {
+        SX_LOG_ERR("Key is NULL");
+        return SAI_STATUS_FAILURE;
+    }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             check_attribs_metadata(1, attr, object_type, functionality_vendor_attr, SAI_COMMON_API_SET))) {
-        /* coverity[result_independent_of_operands:SUPPRESS] */
-        SX_LOG((((SAI_STATUS_ATTR_NOT_IMPLEMENTED_0 == status) || (SAI_STATUS_ATTR_NOT_SUPPORTED_0 == status)) ?
-                SX_LOG_WARNING : SX_LOG_ERROR),
-               "Failed attribs check, key:%s\n", key_str);
-        SX_LOG_EXIT();
+    if ((object_type >= SAI_OBJECT_TYPE_MAX) || (object_type < 0)) {
+        SX_LOG_ERR("Unsupported object_type [%d]\n", object_type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!mlnx_obj_types_info[object_type]) {
+        SX_LOG_ERR("Missing mlnx_obj_types_info[%s]\n", SAI_TYPE_STR(object_type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!mlnx_obj_types_info[object_type]->vendor_data) {
+        SX_LOG_ERR("Missing vendor_data for %s\n", SAI_TYPE_STR(object_type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    const sai_vendor_attribute_entry_t *vendor_data = mlnx_obj_types_info[object_type]->vendor_data;
+
+    key_to_str(key, object_type, key_str);
+
+    status = check_attribs_metadata(1, attr, object_type, vendor_data, SAI_COMMON_API_SET);
+    if (SAI_ERR(status)) {
+        uint32_t log_level = SX_LOG_ERROR;
+        if ((status == SAI_STATUS_ATTR_NOT_IMPLEMENTED_0) ||
+            (status == SAI_STATUS_ATTR_NOT_SUPPORTED_0)) {
+            log_level = SX_LOG_WARNING;
+        }
+        SX_LOG(log_level, "Failed attributes check, key: %s\n", key_str);
         return status;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = set_dispatch_attrib_handler(attr, object_type, functionality_vendor_attr, key, key_str))) {
-        SX_LOG_ERR("Failed set attrib dispatch\n");
-        SX_LOG_EXIT();
+    status = set_dispatch_attrib_handler(attr, object_type, vendor_data, key, key_str);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to set the attribute.\n");
         return status;
     }
 
-    SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t sai_get_attributes(_In_ const sai_object_key_t             *key,
-                                _In_ const char                         *key_str,
-                                _In_ sai_object_type_t                   object_type,
-                                _In_ const sai_vendor_attribute_entry_t *functionality_vendor_attr,
-                                _In_ uint32_t                            attr_count,
-                                _Inout_ sai_attribute_t                 *attr_list)
+sai_status_t sai_get_attributes(_In_ const sai_object_key_t *key,
+                                _In_ sai_object_type_t       object_type,
+                                _In_ uint32_t                attr_count,
+                                _Inout_ sai_attribute_t     *attr_list)
 {
     sai_status_t status;
+    char         key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
+    if (!key) {
+        SX_LOG_ERR("Key is NULL");
+        return SAI_STATUS_FAILURE;
+    }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             check_attribs_metadata(attr_count, attr_list, object_type, functionality_vendor_attr,
-                                    SAI_COMMON_API_GET))) {
-        /* coverity[result_independent_of_operands:SUPPRESS] */
-        SX_LOG((((SAI_STATUS_IS_ATTR_NOT_IMPLEMENTED(status)) || (SAI_STATUS_IS_ATTR_NOT_SUPPORTED(status))) ?
-                SX_LOG_WARNING : SX_LOG_ERROR),
-               "Failed attribs check, key:%s\n", key_str);
-        SX_LOG_EXIT();
+    if ((object_type >= SAI_OBJECT_TYPE_MAX) || (object_type < 0)) {
+        SX_LOG_ERR("Unsupported object_type [%d]\n", object_type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!mlnx_obj_types_info[object_type]) {
+        SX_LOG_ERR("Missing mlnx_obj_types_info[%s]\n", SAI_TYPE_STR(object_type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!mlnx_obj_types_info[object_type]->vendor_data) {
+        SX_LOG_ERR("Missing vendor_data for %s\n", SAI_TYPE_STR(object_type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    const sai_vendor_attribute_entry_t *vendor_data = mlnx_obj_types_info[object_type]->vendor_data;
+
+    key_to_str(key, object_type, key_str);
+
+
+    status = check_attribs_metadata(attr_count, attr_list, object_type, vendor_data, SAI_COMMON_API_GET);
+    if (SAI_ERR(status)) {
+        uint32_t log_level = SX_LOG_ERROR;
+        if ((status == SAI_STATUS_ATTR_NOT_IMPLEMENTED_0) ||
+            (status == SAI_STATUS_ATTR_NOT_SUPPORTED_0)) {
+            log_level = SX_LOG_WARNING;
+        }
+        SX_LOG(log_level, "Failed attributes check, key: %s\n", key_str);
         return status;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             get_dispatch_attribs_handler(attr_count, attr_list, object_type, functionality_vendor_attr, key,
-                                          key_str))) {
+    status = get_dispatch_attribs_handler(attr_count, attr_list, object_type, vendor_data, key, key_str);
+    if (SAI_ERR(status)) {
         if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
             status = SAI_STATUS_BUFFER_OVERFLOW;
         } else {
-            SX_LOG_ERR("Failed attribs dispatch\n");
+            SX_LOG_ERR("Failed to get attribute\n");
         }
-        SX_LOG_EXIT();
         return status;
     }
 
-    SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
 
@@ -2192,10 +2309,10 @@ sai_status_t mlnx_bulk_statuses_print(_In_ const char         *object_type_str,
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t sai_ipv4_to_str(_In_ sai_ip4_t value,
-                                    _In_ uint32_t  max_length,
-                                    _Out_ char    *value_str,
-                                    _Out_opt_ int *chars_written)
+sai_status_t sai_ipv4_to_str(_In_ sai_ip4_t value,
+                             _In_ uint32_t  max_length,
+                             _Out_ char    *value_str,
+                             _Out_opt_ int *chars_written)
 {
     inet_ntop(AF_INET, &value, value_str, max_length);
 
@@ -2206,10 +2323,10 @@ static sai_status_t sai_ipv4_to_str(_In_ sai_ip4_t value,
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t sai_ipv6_to_str(_In_ sai_ip6_t value,
-                                    _In_ uint32_t  max_length,
-                                    _Out_ char    *value_str,
-                                    _Out_opt_ int *chars_written)
+sai_status_t sai_ipv6_to_str(_In_ sai_ip6_t value,
+                             _In_ uint32_t  max_length,
+                             _Out_ char    *value_str,
+                             _Out_opt_ int *chars_written)
 {
     inet_ntop(AF_INET6, value, value_str, max_length);
 
@@ -2389,6 +2506,36 @@ sai_status_t sai_qos_map_to_str(_In_ const sai_qos_map_list_t *qosmap,
     return status;
 }
 
+static sai_status_t sai_qos_map_to_str_oid(_In_ sai_object_id_t       qos_map_id,
+                                           _In_ sai_attribute_value_t value,
+                                           _In_ uint32_t              max_length,
+                                           _Out_ char                *value_str)
+{
+    mlnx_qos_map_t *qos_map;
+    sai_status_t    status;
+
+    if (NULL == value_str) {
+        SX_LOG_ERR("NULL value str");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+    *value_str = '\0';
+
+    if (!value.qosmap.count || !value.qosmap.list) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    sai_db_read_lock();
+
+    status = mlnx_qos_map_get_by_id(qos_map_id, &qos_map);
+    if (status != SAI_STATUS_SUCCESS) {
+        sai_db_unlock();
+        return status;
+    }
+
+    sai_db_unlock();
+
+    return sai_qos_map_to_str(&value.qosmap, qos_map->type, max_length, value_str);
+}
 
 static uint32_t sai_oid_to_str(sai_object_id_t oid, uint32_t opt, uint32_t max_length, char *value_str)
 {
@@ -2499,7 +2646,7 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
         break;
 
     case SAI_ATTR_VALUE_TYPE_OBJECT_ID:
-        sai_oid_to_str(value.oid, 0, max_length, value_str);
+        oid_n_to_str(value.oid, max_length, value_str);
         break;
 
     case SAI_ATTR_VALUE_TYPE_OBJECT_LIST:
@@ -2558,7 +2705,7 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
 
         for (ii = 0; ii < count; ii++) {
             if (SAI_ATTR_VALUE_TYPE_OBJECT_LIST == type) {
-                pos += snprintf(value_str + pos, max_length - pos, " %" PRIx64, value.objlist.list[ii]);
+                pos += snprintf(value_str + pos, max_length - pos, " 0x%" PRIX64, value.objlist.list[ii]);
             } else if (SAI_ATTR_VALUE_TYPE_UINT8_LIST == type) {
                 pos += snprintf(value_str + pos, max_length - pos, " %u", value.u8list.list[ii]);
             } else if (SAI_ATTR_VALUE_TYPE_INT8_LIST == type) {
@@ -2791,15 +2938,6 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
 
     case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_OBJECT_ID:
         sai_oid_to_str(value.aclaction.parameter.oid, value.aclaction.enable, max_length, value_str);
-        break;
-
-    case SAI_ATTR_VALUE_TYPE_AGGREGATED_PORT_DATA:
-        snprintf(value_str,
-                 max_length,
-                 "%u,%u,%u,",
-                 value.aport_data.aport,
-                 value.aport_data.plane,
-                 value.aport_data.num_of_planes);
         break;
 
     default:
@@ -3116,8 +3254,19 @@ sai_status_t sai_to_mlnx_object_id(sai_object_type_t type, sai_object_id_t objec
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
+    if ((uint32_t)type >= SAI_OBJECT_TYPE_MAX) {
+        SX_LOG_ERR("Unsupported object type: %d\n", type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if ((uint32_t)mlnx_sai_oid->object_type >= SAI_OBJECT_TYPE_MAX) {
+        SX_LOG_ERR("OID has unsupported type: %d\n", mlnx_sai_oid->object_type);
+        return SAI_STATUS_FAILURE;
+    }
+
     if (mlnx_sai_oid->object_type != type) {
-        SX_LOG_ERR("Invalid object type %u expected %u\n", mlnx_sai_oid->object_type, type);
+        SX_LOG_ERR("Invalid object type [%s] expected [%s]\n", SAI_TYPE_STR(mlnx_sai_oid->object_type),
+                   SAI_TYPE_STR(type));
         return SAI_STATUS_INVALID_OBJECT_TYPE;
     }
 
@@ -3256,6 +3405,34 @@ sai_status_t mlnx_fill_saistatcapabilitylist(const sai_stat_capability_t *data,
     return mlnx_fill_genericlist(sizeof(sai_stat_capability_t), (void*)data, count, (void*)list);
 }
 
+bool mlnx_ip_addr_are_equal(_In_ const sai_ip_addr_family_t family1,
+                            _In_ const sai_ip_addr_t       *addr1,
+                            _In_ const sai_ip_addr_family_t family2,
+                            _In_ const sai_ip_addr_t       *addr2)
+{
+    bool res;
+
+    if (family1 != family2) {
+        return false;
+    }
+
+    if ((NULL == addr1) && (NULL == addr2)) {
+        return true;
+    }
+
+    if ((NULL == addr1) || (NULL == addr2)) {
+        return false;
+    }
+
+    if (SAI_IP_ADDR_FAMILY_IPV4 == family1) {
+        res = addr1->ip4 == addr2->ip4;
+    } else {
+        res = !memcmp(addr1->ip6, addr2->ip6, sizeof(addr1->ip6));
+    }
+
+    return res;
+}
+
 bool mlnx_route_entries_are_equal(_In_ const sai_route_entry_t *u1, _In_ const sai_route_entry_t *u2)
 {
     if ((NULL == u1) && (NULL == u2)) {
@@ -3269,27 +3446,32 @@ bool mlnx_route_entries_are_equal(_In_ const sai_route_entry_t *u1, _In_ const s
     if (u1->vr_id != u2->vr_id) {
         return false;
     }
-    if (u1->destination.addr_family != u2->destination.addr_family) {
+
+    if (!mlnx_ip_addr_are_equal(u1->destination.addr_family, &u1->destination.addr, u2->destination.addr_family,
+                                &u2->destination.addr)) {
         return false;
     }
 
-    if (SAI_IP_ADDR_FAMILY_IPV4 == u1->destination.addr_family) {
-        if (u1->destination.addr.ip4 != u2->destination.addr.ip4) {
-            return false;
-        }
-        if (u1->destination.mask.ip4 != u2->destination.mask.ip4) {
-            return false;
-        }
-    } else {
-        if (memcmp(u1->destination.addr.ip6, u2->destination.addr.ip6, sizeof(u1->destination.addr.ip6))) {
-            return false;
-        }
-        if (memcmp(u1->destination.addr.ip6, u2->destination.addr.ip6, sizeof(u1->destination.addr.ip6))) {
-            return false;
-        }
+    return mlnx_ip_addr_are_equal(u1->destination.addr_family, &u1->destination.mask, u2->destination.addr_family,
+                                  &u2->destination.mask);
+}
+
+bool mlnx_neighbor_entries_are_equal(_In_ const sai_neighbor_entry_t *u1, _In_ const sai_neighbor_entry_t *u2)
+{
+    if ((NULL == u1) && (NULL == u2)) {
+        return true;
     }
 
-    return true;
+    if ((NULL == u1) || (NULL == u2)) {
+        return false;
+    }
+
+    if (u1->rif_id != u2->rif_id) {
+        return false;
+    }
+
+    return mlnx_ip_addr_are_equal(u1->ip_address.addr_family, &u1->ip_address.addr, u2->ip_address.addr_family,
+                                  &u2->ip_address.addr);
 }
 
 sai_status_t mlnx_attribute_value_list_size_check(_Inout_ uint32_t *out_size, _In_ uint32_t in_size)
@@ -3317,6 +3499,109 @@ sai_status_t mlnx_attribute_value_list_size_check(_Inout_ uint32_t *out_size, _I
     return status;
 }
 
+static sai_status_t mlnx_fdb_action_find(_In_ const sai_fdb_entry_t *entry, _Out_ uint32_t *index)
+{
+    uint32_t               ii;
+    bool                   equal;
+    const sai_fdb_entry_t *saved_fdb_entry, *targed_fdb_entry;
+
+    assert(index);
+
+    for (ii = 0; ii < g_sai_db_ptr->fdb_actions.count; ii++) {
+        saved_fdb_entry = &g_sai_db_ptr->fdb_actions.actions[ii].fdb_entry;
+        targed_fdb_entry = entry;
+
+        equal = ((0 == memcmp(saved_fdb_entry->mac_address, targed_fdb_entry->mac_address, sizeof(sai_mac_t))) &&
+                 (saved_fdb_entry->bv_id == targed_fdb_entry->bv_id));
+
+
+        if (equal) {
+            *index = ii;
+            return SAI_STATUS_SUCCESS;
+        }
+    }
+
+    return SAI_STATUS_ITEM_NOT_FOUND;
+}
+
+static void mlnx_fdb_action_remove(_In_ uint32_t index)
+{
+    uint32_t actions_count;
+
+    actions_count = g_sai_db_ptr->fdb_actions.count;
+
+    assert((actions_count > 0) && (index < actions_count));
+
+    g_sai_db_ptr->fdb_actions.actions[index] = g_sai_db_ptr->fdb_actions.actions[actions_count - 1];
+    g_sai_db_ptr->fdb_actions.count--;
+}
+
+sai_status_t mlnx_fdb_action_save(_In_ const sai_fdb_entry_t *entry, _In_ sai_packet_action_t action)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+    uint32_t     ii;
+
+    sai_db_write_lock();
+
+    status = mlnx_fdb_action_find(entry, &ii);
+    if (SAI_ERR(status)) {
+        if (FDB_SAVED_ACTIONS_NUM == g_sai_db_ptr->fdb_actions.count) {
+            SX_LOG_ERR("Failed to save action - max number of saved actions reached (%d)\n",
+                       FDB_SAVED_ACTIONS_NUM);
+            status = SAI_STATUS_INSUFFICIENT_RESOURCES;
+            goto out;
+        }
+
+        ii = g_sai_db_ptr->fdb_actions.count;
+        g_sai_db_ptr->fdb_actions.count++;
+        g_sai_db_ptr->fdb_actions.actions[ii].fdb_entry = *(sai_fdb_entry_t*)entry;
+    }
+
+    g_sai_db_ptr->fdb_actions.actions[ii].action = action;
+
+    status = SAI_STATUS_SUCCESS;
+out:
+    sai_db_unlock();
+
+    return status;
+}
+
+void mlnx_fdb_action_clear(_In_ const sai_fdb_entry_t *entry)
+{
+    sai_status_t status;
+    uint32_t     ii;
+
+    sai_db_write_lock();
+
+    status = mlnx_fdb_action_find(entry, &ii);
+    if (SAI_STATUS_SUCCESS == status) {
+        mlnx_fdb_action_remove(ii);
+    }
+
+    sai_db_unlock();
+}
+
+void mlnx_fdb_action_fetch(_In_ const sai_fdb_entry_t *entry, _Out_ void *entry_action)
+{
+    sai_status_t        status;
+    sai_packet_action_t action;
+    uint32_t            ii;
+
+    assert(entry_action);
+
+    sai_db_write_lock();
+
+    status = mlnx_fdb_action_find(entry, &ii);
+    if (SAI_STATUS_SUCCESS == status) {
+        action = g_sai_db_ptr->fdb_actions.actions[ii].action;
+        status = mlnx_translate_sai_action_to_sdk(action, entry_action, 0);
+        assert(SAI_STATUS_SUCCESS == status);
+
+        mlnx_fdb_action_remove(ii);
+    }
+
+    sai_db_unlock();
+}
 
 bool mlnx_is_mac_empty(_In_ const sai_mac_t mac)
 {
@@ -3328,23 +3613,283 @@ bool mlnx_is_mac_empty(_In_ const sai_mac_t mac)
     return true;
 }
 
-sai_status_t wait_for_sem(sem_t *sem_to_wait, uint32_t wait_seconds)
+/*needs sai_db read lock*/
+sai_status_t mlnx_validate_port_isolation_api(mlnx_port_isolation_api_t port_isolation_api)
 {
-    struct timespec timeout;
+    mlnx_port_isolation_api_t *current_api = &g_sai_db_ptr->port_isolation_api;
+
+    if (port_isolation_api > PORT_ISOLATION_API_MAX) {
+        SX_LOG_ERR("Invalid port isolation api %u\n", port_isolation_api);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (*current_api == PORT_ISOLATION_API_NONE) {
+        *current_api = port_isolation_api;
+    } else if ((*current_api) != port_isolation_api) {
+        SX_LOG_ERR("Invalid api %u, api %u is already in use. Port isolation APIs are mutually exclusive\n",
+                   port_isolation_api, *current_api);
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_reset_port_isolation_api(void)
+{
+    SX_LOG_ENTER();
+
+    sai_db_write_lock();
+    g_sai_db_ptr->port_isolation_api = PORT_ISOLATION_API_NONE;
+    sai_db_unlock();
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_translate_action_to_trap(bool                 is_current_action_present,
+                                           sai_packet_action_t  action,
+                                           sai_packet_action_t *trap_action)
+{
+    assert(trap_action);
 
     SX_LOG_ENTER();
-    if (-1 == clock_gettime(CLOCK_REALTIME, &timeout)) {
-        SX_LOG_ERR("Failed to get current time\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_FAILURE;
-    }
-    timeout.tv_sec += wait_seconds;
-    if (-1 == sem_timedwait(sem_to_wait, &timeout)) {
-        SX_LOG_ERR("Failed to lock semaphore\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_FAILURE;
+
+    if (!is_current_action_present) {
+        *trap_action = SAI_PACKET_ACTION_COPY;
+    } else if (is_action_trap(action)) {
+        *trap_action = action;
+    } else {
+        switch (action) {
+        case SAI_PACKET_ACTION_DROP:
+        case SAI_PACKET_ACTION_DENY:
+            *trap_action = SAI_PACKET_ACTION_TRAP;
+            break;
+
+        case SAI_PACKET_ACTION_FORWARD:
+        case SAI_PACKET_ACTION_TRANSIT:
+            *trap_action = SAI_PACKET_ACTION_LOG;
+            break;
+
+        case SAI_PACKET_ACTION_COPY_CANCEL:
+            *trap_action = SAI_PACKET_ACTION_COPY;
+            break;
+
+        default:
+            SX_LOG_ERR("Invalid action\n");
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
     }
 
-    SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_translate_action_to_no_trap(sai_packet_action_t  action,
+                                              sai_packet_action_t *no_trap_action,
+                                              bool                *is_action_present)
+{
+    assert(no_trap_action);
+    assert(is_action_present);
+
+    SX_LOG_ENTER();
+
+    *is_action_present = true;
+
+    if (!is_action_trap(action)) {
+        *no_trap_action = action;
+    } else {
+        switch (action) {
+        case SAI_PACKET_ACTION_COPY_CANCEL:
+        case SAI_PACKET_ACTION_COPY:
+            *is_action_present = false;
+            break;
+
+        case SAI_PACKET_ACTION_TRANSIT:
+        case SAI_PACKET_ACTION_LOG:
+            *no_trap_action = SAI_PACKET_ACTION_FORWARD;
+            break;
+
+        case SAI_PACKET_ACTION_TRAP:
+        case SAI_PACKET_ACTION_DENY:
+            *no_trap_action = SAI_PACKET_ACTION_DROP;
+            break;
+
+        default:
+            SX_LOG_ERR("Invalid or non-trap action\n");
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+    }
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_translate_action_to_no_forward(sai_packet_action_t action, sai_packet_action_t *no_forward_action)
+{
+    assert(no_forward_action);
+
+    SX_LOG_ENTER();
+
+    if (!is_action_forward(action)) {
+        *no_forward_action = action;
+    } else {
+        switch (action) {
+        case SAI_PACKET_ACTION_FORWARD:
+            *no_forward_action = SAI_PACKET_ACTION_DROP;
+            break;
+
+        case SAI_PACKET_ACTION_LOG:
+            *no_forward_action = SAI_PACKET_ACTION_TRAP;
+            break;
+
+        case SAI_PACKET_ACTION_TRANSIT:
+            *no_forward_action = SAI_PACKET_ACTION_COPY_CANCEL;
+            break;
+
+        default:
+            SX_LOG_ERR("Invalid or non-trap action\n");
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+    }
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_translate_action_to_forward(sai_packet_action_t action, sai_packet_action_t *forward_action)
+{
+    assert(forward_action);
+
+    SX_LOG_ENTER();
+
+    if (is_action_forward(action)) {
+        *forward_action = action;
+    } else {
+        switch (action) {
+        case SAI_PACKET_ACTION_DROP:
+            *forward_action = SAI_PACKET_ACTION_FORWARD;
+            break;
+
+        case SAI_PACKET_ACTION_TRAP:
+        case SAI_PACKET_ACTION_COPY:
+            *forward_action = SAI_PACKET_ACTION_LOG;
+            break;
+
+        case SAI_PACKET_ACTION_DENY:
+        case SAI_PACKET_ACTION_COPY_CANCEL:
+            *forward_action = SAI_PACKET_ACTION_TRANSIT;
+            break;
+
+        default:
+            SX_LOG_ERR("Invalid action\n");
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+bool is_action_trap(sai_packet_action_t action)
+{
+    return (action == SAI_PACKET_ACTION_COPY) || (action == SAI_PACKET_ACTION_LOG) ||
+           (action == SAI_PACKET_ACTION_TRAP);
+}
+
+bool is_action_forward(sai_packet_action_t action)
+{
+    return (action == SAI_PACKET_ACTION_FORWARD) || (action == SAI_PACKET_ACTION_LOG) ||
+           (action == SAI_PACKET_ACTION_TRANSIT);
+}
+
+uint64_t time_ms_get(void)
+{
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+size_t oid_n_to_str(_In_ sai_object_id_t oid, _In_ size_t len, _Out_ char *str)
+{
+    sai_object_key_t  key = { .key.object_id = oid };
+    sai_object_type_t object_type = sai_object_type_query(oid);
+
+    return key_n_to_str(&key, object_type, len, str);
+}
+
+void oid_to_str(_In_ sai_object_id_t oid, _Out_ char *str)
+{
+    oid_n_to_str(oid, MAX_KEY_STR_LEN, str);
+}
+
+bool is_match_key_object_type(_In_ sai_object_type_t object_type)
+{
+    switch (object_type) {
+    case SAI_OBJECT_TYPE_FDB_ENTRY:
+    case SAI_OBJECT_TYPE_NEIGHBOR_ENTRY:
+    case SAI_OBJECT_TYPE_ROUTE_ENTRY:
+    case SAI_OBJECT_TYPE_MCAST_FDB_ENTRY:
+    case SAI_OBJECT_TYPE_L2MC_ENTRY:
+    case SAI_OBJECT_TYPE_IPMC_ENTRY:
+    case SAI_OBJECT_TYPE_INSEG_ENTRY:
+    case SAI_OBJECT_TYPE_NAT_ENTRY:
+    case SAI_OBJECT_TYPE_MY_SID_ENTRY:
+        return true;
+
+    default:
+        break;
+    }
+
+    return false;
+}
+
+void key_to_str(_In_ const sai_object_key_t *key, _In_ sai_object_type_t object_type, _Out_ char *str)
+{
+    key_n_to_str(key, object_type, MAX_KEY_STR_LEN, str);
+}
+
+size_t key_n_to_str(_In_ const sai_object_key_t *key,
+                    _In_ sai_object_type_t       object_type,
+                    _In_ size_t                  len,
+                    _Out_ char                  *str)
+{
+    size_t written_chars = 0;
+
+    assert(str);
+    if ((object_type >= SAI_OBJECT_TYPE_MAX) || (object_type < 0)) {
+        return snprintf(str, len, "<invalid>");
+    }
+
+    written_chars = snprintf(str, len, "%s ", SAI_TYPE_STR(object_type));
+    len -= written_chars;
+    str += written_chars;
+
+    if (!is_match_key_object_type(object_type)) {
+        written_chars = snprintf(str, len, "[OID:0x%lX] ", key->key.object_id);
+        len -= written_chars;
+        str += written_chars;
+    }
+
+    if (mlnx_obj_types_info[object_type] && mlnx_obj_types_info[object_type]->printer) {
+        written_chars = mlnx_obj_types_info[object_type]->printer(key, str, len);
+        len -= written_chars;
+        str += written_chars;
+    }
+
+    return written_chars;
+}
+
+bool u32_list_equal(_In_ const uint32_t *list1,
+                    _In_ uint32_t        list1_count,
+                    _In_ const uint32_t *list2,
+                    _In_ uint32_t        list2_count)
+{
+    assert(NULL != list1);
+    assert(NULL != list2);
+
+    if (list1_count != list2_count) {
+        return false;
+    }
+
+    for (uint32_t ii = 0; ii < list1_count; ii++) {
+        if (list1[ii] != list2[ii]) {
+            return false;
+        }
+    }
+
+    return true;
 }

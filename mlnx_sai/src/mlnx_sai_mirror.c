@@ -117,6 +117,14 @@ static sai_status_t mlnx_mirror_session_congestion_mode_get(_In_ const sai_objec
                                                             _In_ uint32_t                  attr_index,
                                                             _Inout_ vendor_cache_t        *cache,
                                                             void                          *arg);
+static sai_status_t mlnx_mirror_session_sample_rate_set(_In_ const sai_object_key_t      *key,
+                                                        _In_ const sai_attribute_value_t *value,
+                                                        void                             *arg);
+static sai_status_t mlnx_mirror_session_sample_rate_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg);
 static sai_status_t mlnx_mirror_session_monitor_port_set(_In_ const sai_object_key_t      *key,
                                                          _In_ const sai_attribute_value_t *value,
                                                          void                             *arg);
@@ -264,6 +272,11 @@ static const sai_vendor_attribute_entry_t mirror_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_mirror_session_congestion_mode_get, NULL,
       mlnx_mirror_session_congestion_mode_set, NULL },
+    { SAI_MIRROR_SESSION_ATTR_SAMPLE_RATE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_mirror_session_sample_rate_get, NULL,
+      mlnx_mirror_session_sample_rate_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -275,27 +288,14 @@ static const mlnx_attr_enum_info_t        mirror_session_enum_info[] = {
     [SAI_MIRROR_SESSION_ATTR_ERSPAN_ENCAPSULATION_TYPE] = ATTR_ENUM_VALUES_ALL(),
     [SAI_MIRROR_SESSION_ATTR_CONGESTION_MODE] = ATTR_ENUM_VALUES_ALL(),
 };
-const mlnx_obj_type_attrs_info_t          mlnx_mirror_session_obj_type_info =
-{ mirror_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(mirror_session_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
-static void mirror_key_to_str(_In_ const sai_object_id_t sai_mirror_obj_id, _Out_ char *key_str)
+static size_t mirror_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
 {
-    uint32_t sdk_mirror_obj_id = 0;
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
 
-    SX_LOG_ENTER();
-
-    if (SAI_STATUS_SUCCESS !=
-        mlnx_object_to_type(sai_mirror_obj_id, SAI_OBJECT_TYPE_MIRROR_SESSION, &sdk_mirror_obj_id, NULL)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid sai mirror obj ID %" PRIx64 "", sai_mirror_obj_id);
-    } else {
-        snprintf(key_str,
-                 MAX_KEY_STR_LEN,
-                 "sai mirror obj ID %" PRIx64 ", sdk mirror obj ID %d",
-                 sai_mirror_obj_id,
-                 sdk_mirror_obj_id);
-    }
-
-    SX_LOG_EXIT();
+    return snprintf(str, max_len, "[sx_span_session_id:%u]", mlnx_oid.id.u32);
 }
+const mlnx_obj_type_attrs_info_t mlnx_mirror_session_obj_type_info =
+{ mirror_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(mirror_session_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), mirror_info_print};
 
 sai_status_t mlnx_mirror_availability_get(_In_ sai_object_id_t        switch_id,
                                           _In_ uint32_t               attr_count,
@@ -347,6 +347,18 @@ sai_status_t mlnx_mirror_policer_sx_attrs_validate(_In_ const sx_policer_attribu
         return SAI_STATUS_FAILURE;
     }
 
+    if (mlnx_chip_is_spc2or3or4()) {
+        if (sx_attrs->color_aware != false) {
+            SX_LOG_ERR("Span policer must be SAI_POLICER_COLOR_SOURCE_BLIND\n");
+            return SAI_STATUS_FAILURE;
+        }
+
+        if (sx_attrs->red_action != SX_POLICER_ACTION_DISCARD) {
+            SX_LOG_ERR("Span policer red action must be drop\n");
+            return SAI_STATUS_FAILURE;
+        }
+    }
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -358,6 +370,55 @@ static sai_status_t mlnx_mirror_policer_validate(_In_ sai_object_id_t policer_oi
     status = db_get_sai_policer_data(policer_oid, &policer);
     if (SAI_ERR(status)) {
         return status;
+    }
+
+    /* TODO: Temporary hack for the Sonic release
+     * Refer to "Bug SW #3177465" for more information */
+    if (mlnx_chip_is_spc2or3or4()) {
+        sai_object_key_t key = { .key.object_id = policer_oid };
+        sai_attribute_t  attr;
+
+        if (policer->sx_policer_attr.color_aware != false) {
+            attr.id = SAI_POLICER_ATTR_COLOR_SOURCE;
+            attr.value.s32 = SAI_POLICER_COLOR_SOURCE_BLIND;
+            status = sai_policer_attr_set(&key,
+                                          attr,
+                                          "SAI_POLICER_ATTR_COLOR_SOURCE");
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to set mirror policer 0x%X color blind.\n", policer_oid);
+                return status;
+            }
+            SX_LOG_NTC("Set mirror policer 0x%X COLOR BLIND.\n", policer_oid);
+        }
+        assert(policer->sx_policer_attr.color_aware == false);
+
+        if (policer->sx_policer_attr.rate_type != SX_POLICER_RATE_TYPE_SINGLE_RATE_E) {
+            attr.id = SAI_POLICER_ATTR_MODE;
+            attr.value.s32 = SAI_POLICER_MODE_SR_TCM;
+            status = sai_policer_attr_set(&key,
+                                          attr,
+                                          "SAI_POLICER_ATTR_MODE");
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to set mirror policer 0x%X single rate mode.\n", policer_oid);
+                return status;
+            }
+            SX_LOG_NTC("Set mirror policer 0x%X mode SINGLE RATE.\n", policer_oid);
+        }
+        assert(policer->sx_policer_attr.rate_type == SX_POLICER_RATE_TYPE_SINGLE_RATE_E);
+
+        if (policer->sx_policer_attr.red_action != SX_POLICER_ACTION_DISCARD) {
+            attr.id = SAI_POLICER_ATTR_RED_PACKET_ACTION;
+            attr.value.s32 = SAI_PACKET_ACTION_DROP;
+            status = sai_policer_attr_set(&key,
+                                          attr,
+                                          "SAI_POLICER_ATTR_RED_PACKET_ACTION");
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to set mirror policer 0x%X red drop.\n", policer_oid);
+                return status;
+            }
+            SX_LOG_NTC("Set mirror policer 0x%X RED DROP.\n", policer_oid);
+        }
+        assert(policer->sx_policer_attr.red_action == SX_POLICER_ACTION_DISCARD);
     }
 
     return mlnx_mirror_policer_sx_attrs_validate(&policer->sx_policer_attr);
@@ -1982,8 +2043,9 @@ static sai_status_t mlnx_mirror_session_policer_set(_In_ const sai_object_key_t 
                                                     _In_ const sai_attribute_value_t *value,
                                                     void                             *arg)
 {
-    sai_status_t status = SAI_STATUS_FAILURE;
-    uint32_t     sdk_mirror_obj_id = 0;
+    sai_status_t    status = SAI_STATUS_FAILURE;
+    uint32_t        sdk_mirror_obj_id = 0;
+    sai_object_id_t prev_policer;
 
     SX_LOG_ENTER();
 
@@ -2014,12 +2076,24 @@ static sai_status_t mlnx_mirror_session_policer_set(_In_ const sai_object_key_t 
         goto out;
     }
 
+    prev_policer = g_sai_db_ptr->mirror_policer[sdk_mirror_obj_id].policer_oid;
     g_sai_db_ptr->mirror_policer[sdk_mirror_obj_id].policer_oid = value->oid;
 
-    status = mlnx_acl_mirror_action_policer_update(sdk_mirror_obj_id);
-    if (SAI_ERR(status)) {
-        SX_LOG_NTC("Failed to update policer for mirror session %lx that is used in ACL\n", key->key.object_id);
-        goto out;
+    if (mlnx_chip_is_spc()) {
+        status = mlnx_acl_mirror_action_policer_update(sdk_mirror_obj_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_NTC("Failed to update policer for mirror session %lx that is used in ACL\n", key->key.object_id);
+            goto out;
+        }
+    } else {
+        status = mlnx_sai_update_span_session_policer(sdk_mirror_obj_id,
+                                                      prev_policer,
+                                                      value->oid);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update span session policer. Span session id - %d, policer - 0x%" PRIx64 "\n",
+                       sdk_mirror_obj_id, value->oid);
+            goto out;
+        }
     }
 
 out:
@@ -2114,6 +2188,90 @@ out:
     return status;
 }
 
+static sai_status_t mlnx_mirror_session_sample_rate_set(_In_ const sai_object_key_t      *key,
+                                                        _In_ const sai_attribute_value_t *value,
+                                                        void                             *arg)
+{
+    sai_status_t status;
+    uint32_t     sx_mirror_session_id;
+
+    SX_LOG_ENTER();
+
+    if (mlnx_chip_is_spc()) {
+        SX_LOG_ERR("Mirror sample rate is not supported for SCP1\n");
+        return SAI_STATUS_NOT_SUPPORTED;
+    }
+
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_MIRROR_SESSION, &sx_mirror_session_id, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Invalid mirror session id %" PRIx64 "\n", key->key.object_id);
+        return status;
+    }
+
+    if (sx_mirror_session_id >= SPAN_SESSION_MAX) {
+        SX_LOG_ERR("Invalid mirror session id %d\n", sx_mirror_session_id);
+        return SAI_STATUS_INVALID_OBJECT_ID;
+    }
+
+    if (value->u32 > MLNX_MIRROR_SAMPLE_RATE_MAX) {
+        SX_LOG_ERR("Sample rate %d is higher than maximum %d\n", value->u32, MLNX_MIRROR_SAMPLE_RATE_MAX);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    sai_db_write_lock();
+    if (value->u32 == g_sai_db_ptr->mirror_sample_rate[sx_mirror_session_id]) {
+        goto out;
+    }
+
+    status = mlnx_acl_mirror_action_sample_rate_update(sx_mirror_session_id, value->u32);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to update acl mirror sample rate for sx_span_session_id %d\n", sx_mirror_session_id);
+        goto out;
+    }
+
+    g_sai_db_ptr->mirror_sample_rate[sx_mirror_session_id] = value->u32;
+
+out:
+    sai_db_unlock();
+    return status;
+}
+
+static sai_status_t mlnx_mirror_session_sample_rate_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg)
+{
+    sai_status_t status;
+    uint32_t     sx_mirror_session_id = 0;
+
+    SX_LOG_ENTER();
+
+    if (mlnx_chip_is_spc()) {
+        SX_LOG_ERR("Mirror sample rate is not supported for SCP1\n");
+        return SAI_STATUS_NOT_SUPPORTED;
+    }
+
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_MIRROR_SESSION, &sx_mirror_session_id, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Invalid mirror session id %" PRIx64 "\n", key->key.object_id);
+        return status;
+    }
+
+    if (sx_mirror_session_id >= SPAN_SESSION_MAX) {
+        SX_LOG_ERR("Invalid mirror session id %d\n", sx_mirror_session_id);
+        return SAI_STATUS_INVALID_OBJECT_ID;
+    }
+
+    sai_db_read_lock();
+
+    value->u32 = g_sai_db_ptr->mirror_sample_rate[sx_mirror_session_id];
+
+    sai_db_unlock();
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_check_mirror_single_attribute_on_create(
     _In_ bool                          is_valid_mirror_type,
     _In_ uint32_t                      attr_count,
@@ -2175,7 +2333,6 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
     bool         ERSPAN = false;
     sai_status_t status = SAI_STATUS_FAILURE;
     const bool   is_mandatory = true;
-    char         list_str[MAX_LIST_VALUE_STR_LEN];
 
     SX_LOG_ENTER();
 
@@ -2187,8 +2344,7 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_MIRROR_SESSION, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create mirror, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_MIRROR_SESSION);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_MIRROR_SESSION_ATTR_TYPE, mirror_type, &index);
     assert(SAI_STATUS_SUCCESS == status);
@@ -2669,17 +2825,21 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
     const sai_attribute_value_t *mirror_gre_protocol_type = NULL;
     const sai_attribute_value_t *mirror_policer = NULL;
     const sai_attribute_value_t *congestion_mode_attr = NULL;
+    const sai_attribute_value_t *sample_rate_attr = NULL;
     sai_status_t                 status = SAI_STATUS_FAILURE, status_truncate_size =
         SAI_STATUS_FAILURE;
     sai_status_t                         status_tc = SAI_STATUS_FAILURE, status_ttl = SAI_STATUS_FAILURE;
     sai_status_t                         status_remove = SAI_STATUS_FAILURE;
     sx_span_session_params_t             sdk_mirror_obj_params;
     sx_span_session_id_t                 sdk_mirror_obj_id = 0;
+    bool                                 is_span_session_created = false, is_port_analyzer_added = false;
+    bool                                 is_policer_bound = false;
     sai_object_id_t                      policer_oid = SAI_NULL_OBJECT_ID;
     uint32_t                             policer_attr_idx;
     uint32_t                             congestion_mode_idx;
     sai_mirror_session_congestion_mode_t congestion_mode;
-
+    uint32_t                             sample_rate_idx;
+    uint32_t                             sample_rate = MLNX_MIRROR_SAMPLE_RATE_DISABLE_SAMPLING;
 
     memset(&sdk_mirror_obj_params, 0, sizeof(sx_span_session_params_t));
 
@@ -2772,37 +2932,63 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
         }
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_CREATE, &sdk_mirror_obj_params,
-                                                &sdk_mirror_obj_id)))) {
-        SX_LOG_ERR("Error creating mirror session\n");
+    status = sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_CREATE, &sdk_mirror_obj_params, &sdk_mirror_obj_id);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Error creating mirror session - %s\n", SX_STATUS_MSG(status));
+        status = sdk_to_sai(status);
         goto out;
     }
+    is_span_session_created = true;
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_MIRROR_SESSION_ATTR_CONGESTION_MODE, &congestion_mode_attr,
                                  &congestion_mode_idx);
     if (SAI_OK(status)) {
         congestion_mode = congestion_mode_attr->u8;
-    } else {
+    } else if (status == SAI_STATUS_ITEM_NOT_FOUND) {
         congestion_mode = SAI_MIRROR_SESSION_CONGESTION_MODE_INDEPENDENT;
+    } else {
+        SX_LOG_ERR("Failed to find congestion mode attribute\n");
+        goto out;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_add_mirror_analyzer_port(sdk_mirror_obj_id, mirror_monitor_port->oid, congestion_mode))) {
-        if (SAI_STATUS_SUCCESS !=
-            (status_remove =
-                 sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &sdk_mirror_obj_params,
-                                                    &sdk_mirror_obj_id)))) {
-            SX_LOG_ERR("Error destroying mirror session, sdk mirror obj id: %d\n", sdk_mirror_obj_id);
-            status = status_remove;
+    status = find_attrib_in_list(attr_count, attr_list, SAI_MIRROR_SESSION_ATTR_SAMPLE_RATE, &sample_rate_attr,
+                                 &sample_rate_idx);
+    if (SAI_OK(status)) {
+        if (mlnx_chip_is_spc()) {
+            SX_LOG_ERR("Mirror sample rate is not supported for SCP1\n");
+            status = SAI_STATUS_NOT_SUPPORTED;
             goto out;
         }
 
-        SX_LOG_ERR("Error adding mirror analyzer port %" PRIx64 " on sdk mirror obj id %d\n",
-                   mirror_monitor_port->oid,
+        if (sample_rate_attr->u32 > MLNX_MIRROR_SAMPLE_RATE_MAX) {
+            SX_LOG_ERR("Sample rate %d is higher than maximum %d\n", sample_rate_attr->u32,
+                       MLNX_MIRROR_SAMPLE_RATE_MAX);
+            status = SAI_STATUS_INVALID_ATTR_VALUE_0 + sample_rate_idx;
+            goto out;
+        }
+
+        sample_rate = sample_rate_attr->u32;
+    } else if (status != SAI_STATUS_ITEM_NOT_FOUND) {
+        SX_LOG_ERR("Failed to find sample rate attribute\n");
+        goto out;
+    }
+
+    status = mlnx_add_mirror_analyzer_port(sdk_mirror_obj_id, mirror_monitor_port->oid, congestion_mode);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error adding mirror analyzer port %" PRIx64 " on sdk mirror obj id %d\n", mirror_monitor_port->oid,
                    sdk_mirror_obj_id);
         goto out;
+    }
+    is_port_analyzer_added = true;
+
+    if (policer_oid != SAI_NULL_OBJECT_ID) {
+        status = mlnx_sai_update_span_session_policer(sdk_mirror_obj_id, SAI_NULL_OBJECT_ID, policer_oid);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update span session policer. Span session id - %d, policer - 0x%" PRIx64 "\n",
+                       sdk_mirror_obj_id, policer_oid);
+            goto out;
+        }
+        is_policer_bound = true;
     }
 
     SX_LOG_NTC("Created sdk mirror obj id: %d\n", sdk_mirror_obj_id);
@@ -2843,10 +3029,38 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
     }
 
     g_sai_db_ptr->mirror_congestion_mode[sdk_mirror_obj_id] = congestion_mode;
+    g_sai_db_ptr->mirror_sample_rate[sdk_mirror_obj_id] = sample_rate;
 
-    SX_LOG_NTC("Created SAI mirror obj id: %" PRIx64 "\n", *sai_mirror_obj_id);
+    MLNX_LOG_OID_CREATED(*sai_mirror_obj_id);
 
 out:
+    if (SAI_ERR(status)) {
+        if (is_policer_bound) {
+            status_remove = mlnx_sai_update_span_session_policer(sdk_mirror_obj_id, policer_oid, SAI_NULL_OBJECT_ID);
+            if (SAI_ERR(status_remove)) {
+                SX_LOG_ERR("Failed to update span session policer. Span session id - %d, policer - 0x%" PRIx64
+                           " SAI status code - %d\n", sdk_mirror_obj_id, policer_oid, status_remove);
+            }
+        }
+
+        if (is_port_analyzer_added) {
+            status_remove = mlnx_delete_mirror_analyzer_port(sdk_mirror_obj_id);
+            if (SAI_ERR(status_remove)) {
+                SX_LOG_ERR("Failed to delete mirror analyzer port, sdk mirror obj id: %d, SAI status code - %d\n",
+                           sdk_mirror_obj_id, status_remove);
+            }
+        }
+
+        if (is_span_session_created) {
+            status_remove = sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &sdk_mirror_obj_params,
+                                                               &sdk_mirror_obj_id));
+            if (SAI_ERR(status_remove)) {
+                SX_LOG_ERR("Error destroying mirror session, sdk mirror obj id: %d, SAI status code - %d\n",
+                           sdk_mirror_obj_id, status_remove);
+            }
+        }
+    }
+
     sai_db_unlock();
     SX_LOG_EXIT();
 
@@ -2887,6 +3101,8 @@ static sai_status_t mlnx_remove_mirror_session(_In_ const sai_object_id_t sai_mi
     sx_span_session_params_t sdk_mirror_obj_params;
     bool                     is_in_use;
 
+    MLNX_LOG_OID_REMOVE(sai_mirror_obj_id);
+
     memset(&sdk_mirror_obj_params, 0, sizeof(sx_span_session_params_t));
 
     SX_LOG_ENTER();
@@ -2922,6 +3138,18 @@ static sai_status_t mlnx_remove_mirror_session(_In_ const sai_object_id_t sai_mi
         return SAI_STATUS_OBJECT_IN_USE;
     }
 
+    if (g_sai_db_ptr->mirror_policer[sdk_mirror_obj_id].policer_oid != SAI_NULL_OBJECT_ID) {
+        status = mlnx_sai_update_span_session_policer(sdk_mirror_obj_id,
+                                                      g_sai_db_ptr->mirror_policer[sdk_mirror_obj_id].policer_oid,
+                                                      SAI_NULL_OBJECT_ID);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to unbind span session policer. Span session id - %d\n", sdk_mirror_obj_id);
+            sai_db_unlock();
+            SX_LOG_EXIT();
+            return status;
+        }
+    }
+
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_delete_mirror_analyzer_port(sdk_mirror_obj_id))) {
         sai_db_unlock();
@@ -2944,8 +3172,6 @@ static sai_status_t mlnx_remove_mirror_session(_In_ const sai_object_id_t sai_mi
         return status;
     }
 
-    SX_LOG_NTC("Removed SAI mirror obj id %" PRIx64 "\n", sai_mirror_obj_id);
-
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -2954,17 +3180,8 @@ static sai_status_t mlnx_set_mirror_session_attribute(_In_ const sai_object_id_t
                                                       _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = sai_mirror_obj_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    sai_status_t           status = SAI_STATUS_FAILURE;
 
-    SX_LOG_ENTER();
-
-    mirror_key_to_str(sai_mirror_obj_id, key_str);
-
-    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_MIRROR_SESSION, mirror_vendor_attribs, attr);
-
-    SX_LOG_EXIT();
-    return status;
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_MIRROR_SESSION, attr);
 }
 
 static sai_status_t mlnx_get_mirror_session_attribute(_In_ const sai_object_id_t sai_mirror_obj_id,
@@ -2972,22 +3189,8 @@ static sai_status_t mlnx_get_mirror_session_attribute(_In_ const sai_object_id_t
                                                       _Inout_ sai_attribute_t   *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = sai_mirror_obj_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    sai_status_t           status = SAI_STATUS_FAILURE;
 
-    SX_LOG_ENTER();
-
-    mirror_key_to_str(sai_mirror_obj_id, key_str);
-
-    status = sai_get_attributes(&key,
-                                key_str,
-                                SAI_OBJECT_TYPE_MIRROR_SESSION,
-                                mirror_vendor_attribs,
-                                attr_count,
-                                attr_list);
-
-    SX_LOG_EXIT();
-    return status;
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_MIRROR_SESSION, attr_count, attr_list);
 }
 
 sai_status_t mlnx_mirror_log_set(sx_verbosity_level_t level)

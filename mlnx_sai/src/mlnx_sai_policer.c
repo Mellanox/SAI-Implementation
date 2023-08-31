@@ -51,10 +51,6 @@
 #undef  __MODULE__
 #define __MODULE__ SAI_POLICER
 
-#define policer_db_cl_plock_excl_acquire(lock)         \
-    {SX_LOG_DBG("policer_db_cl_plock_excl_acquire\n"); \
-     cl_plock_excl_acquire(lock); }
-#define policer_db_cl_plock_release(lock) {SX_LOG_DBG("policer_db_cl_plock_release\n"); cl_plock_release(lock); }
 #define IR_UNITS 1000
 
 sai_status_t mlnx_sai_unbind_policer_from_trap_group(_In_ sai_object_id_t sai_object_id);
@@ -159,9 +155,6 @@ static sai_status_t sai_policer_red_packet_action_get(_In_ const sai_object_key_
                                                       _In_ uint32_t                  attr_index,
                                                       _Inout_ vendor_cache_t        *cache,
                                                       void                          *arg);
-static sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key,
-                                         _In_ sai_attribute_t         sai_attr,
-                                         _In_ char                  * attr_name);
 static sai_status_t sai_policer_color_source_set(_In_ const sai_object_key_t      *key,
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg);
@@ -186,11 +179,8 @@ static sai_status_t sai_policer_yellow_packet_action_set(_In_ const sai_object_k
 static sai_status_t sai_policer_red_packet_action_set(_In_ const sai_object_key_t      *key,
                                                       _In_ const sai_attribute_value_t *value,
                                                       void                             *arg);
-
-void db_reset_policer_entry(_In_ uint32_t db_policers_entry_index);
-sai_status_t db_init_sai_policer_data(_In_ sx_policer_attributes_t* policer_attr,
-                                      _Out_ uint32_t              * db_policers_entry_index_p);
-static sai_status_t db_remove_sai_policer_data(_In_ uint32_t db_policers_entry_index);
+sai_status_t db_init_sai_policer_data(_In_ sx_policer_attributes_t * policer_attr,
+                                      _Out_ mlnx_shm_rm_array_idx_t* db_policers_entry_index_p);
 static sai_status_t db_write_sai_policer_attribs(_In_ sai_object_id_t          sai_policer_id,
                                                  _In_ sx_policer_attributes_t* sx_policer_attribs);
 static const sai_vendor_attribute_entry_t policer_vendor_attribs[] = {
@@ -297,8 +287,17 @@ static const mlnx_attr_enum_info_t        policer_enum_info[] = {
 static const sai_stat_capability_t        policer_stats_capabilities[] = {
     { SAI_POLICER_STAT_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
 };
-const mlnx_obj_type_attrs_info_t          mlnx_policer_obj_type_info =
-{ policer_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(policer_enum_info), OBJ_STAT_CAP_INFO(policer_stats_capabilities)};
+
+static size_t policer_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+{
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+
+    return snprintf(str, max_len, "[policers_db[%u]]", mlnx_oid.id.policer_db_idx.idx);
+}
+
+const mlnx_obj_type_attrs_info_t mlnx_policer_obj_type_info =
+{ policer_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(policer_enum_info), OBJ_STAT_CAP_INFO(policer_stats_capabilities),
+  policer_info_print};
 static void log_sx_policer_attrib_color_action(_In_ sx_policer_action_t sx_policer_action, _In_ char* action_name)
 {
     char* val = NULL;
@@ -406,7 +405,7 @@ static sai_status_t sai_policer_get_sx_attribs_internal(_In_ const sai_object_ke
     }
 
     if (lock_db_access) {
-        policer_db_cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+        sai_db_write_lock();
     }
 
     if (SAI_STATUS_SUCCESS !=
@@ -418,7 +417,7 @@ static sai_status_t sai_policer_get_sx_attribs_internal(_In_ const sai_object_ke
     }
 
     if (lock_db_access) {
-        policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
+        sai_db_unlock();
     }
 
     SX_LOG_EXIT();
@@ -464,6 +463,47 @@ static sai_status_t sai_policer_meter_type_attr_get(_In_ const sai_object_key_t 
     value->s32 = meter_val;
 
     SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_policer_db_alloc(_Out_ mlnx_policer_shm_array_entry_t **policer_data,
+                                          _Out_ mlnx_shm_rm_array_idx_t         *idx)
+{
+    sai_status_t status;
+    void        *ptr;
+
+    assert(policer_data);
+    assert(idx);
+
+    status = mlnx_shm_rm_array_alloc(MLNX_SHM_RM_ARRAY_TYPE_POLICER, idx, &ptr);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    *policer_data = ptr;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_policer_oid_create(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ sai_object_id_t*        policer_oid)
+{
+    mlnx_object_id_t *mlnx_oid = (mlnx_object_id_t*)policer_oid;
+    sai_status_t      status;
+
+    assert(policer_oid);
+
+    status = mlnx_shm_rm_idx_validate(idx);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (idx.type != MLNX_SHM_RM_ARRAY_TYPE_POLICER) {
+        return SAI_STATUS_FAILURE;
+    }
+
+    memset(policer_oid, 0, sizeof(*policer_oid));
+    mlnx_oid->object_type = SAI_OBJECT_TYPE_POLICER;
+    mlnx_oid->id.policer_db_idx = idx;
     return SAI_STATUS_SUCCESS;
 }
 
@@ -846,7 +886,7 @@ static sai_status_t sai_policer_commit_changes_to_port_bindings(sai_object_id_t 
     sai_status_t                   sai_status;
     sx_status_t                    sx_status;
     mlnx_port_config_t            *port_config;
-    mlnx_policer_db_entry_t      * policer_entry = NULL;
+    mlnx_policer_db_entry_t       *policer_entry = NULL;
     uint32_t                       storm_control_ind = 0;
     sx_port_storm_control_params_t storm_ctrl_params;
     uint32_t                       port_ind;
@@ -873,6 +913,8 @@ static sai_status_t sai_policer_commit_changes_to_port_bindings(sai_object_id_t 
                 /* We are using the original policer settings saved in the DB.
                  *  But need to set this flag to false for storm policer API to work.*/
                 storm_ctrl_params.policer_params.is_host_ifc_policer = false;
+                storm_ctrl_params.policer_params.is_span_session_policer = false;
+
                 if (SX_STATUS_SUCCESS !=
                     (sx_status =
                          storm_policer_functions.sx_api_port_storm_control_set_p(
@@ -911,11 +953,13 @@ static sai_status_t sai_policer_commit_changes(_In_ sai_object_id_t sai_policer)
     }
 
     if (policer_entry->sx_policer_id_acl != SX_POLICER_ID_INVALID) {
-        SX_LOG_NTC(
-            "Calling sx_api_policer_set to commit for acl sx policer0x%" PRIx64 ". sai_policer:0x%" PRIx64 ".\n",
+        SX_LOG_DBG(
+            "Change for acl sx policer0x%" PRIx64 ". sai_policer:0x%" PRIx64 ".\n",
             policer_entry->sx_policer_id_acl,
             sai_policer);
         policer_entry->sx_policer_attr.is_host_ifc_policer = false;
+        policer_entry->sx_policer_attr.is_span_session_policer = false;
+
         if (SX_STATUS_SUCCESS !=
             (sx_status = sx_api_policer_set(gh_sdk,
                                             SX_ACCESS_CMD_EDIT,
@@ -933,11 +977,13 @@ static sai_status_t sai_policer_commit_changes(_In_ sai_object_id_t sai_policer)
         }
     }
     if (policer_entry->sx_policer_id_trap != SX_POLICER_ID_INVALID) {
-        SX_LOG_NTC(
-            "Calling sx_api_policer_set to commit for trap sx policer0x%" PRIx64 ". sai_policer:0x%" PRIx64 ".\n",
+        SX_LOG_DBG(
+            "Change for trap sx policer0x%" PRIx64 ". sai_policer:0x%" PRIx64 ".\n",
             policer_entry->sx_policer_id_trap,
             sai_policer);
         policer_entry->sx_policer_attr.is_host_ifc_policer = true;
+        policer_entry->sx_policer_attr.is_span_session_policer = false;
+
         if (SX_STATUS_SUCCESS !=
             (sx_status = sx_api_policer_set(gh_sdk,
                                             SX_ACCESS_CMD_EDIT,
@@ -954,17 +1000,18 @@ static sai_status_t sai_policer_commit_changes(_In_ sai_object_id_t sai_policer)
             return sdk_to_sai(sx_status);
         }
     }
-    if (policer_entry->sx_policer_id_mirror != SX_POLICER_ID_INVALID) {
-        SX_LOG_NTC(
-            "Calling sx_api_policer_set to commit for mirror sx policer0x%" PRIx64 ". sai_policer:0x%" PRIx64 ".\n",
-            policer_entry->sx_policer_id_mirror,
+    if (policer_entry->sx_policer_id_acl_mirror != SX_POLICER_ID_INVALID) {
+        SX_LOG_DBG(
+            "Change for acl mirror sx policer 0x%" PRIx64 ". sai_policer:0x%" PRIx64 ".\n",
+            policer_entry->sx_policer_id_acl_mirror,
             sai_policer);
         policer_entry->sx_policer_attr.is_host_ifc_policer = false;
+        policer_entry->sx_policer_attr.is_span_session_policer = false;
 
         memcpy(&policer_attrs_for_mirror, &policer_entry->sx_policer_attr, sizeof(policer_attrs_for_mirror));
 
         if (policer_attrs_for_mirror.red_action != SX_POLICER_ACTION_FORWARD_SET_RED_COLOR) {
-            SX_LOG_DBG("Fixing mirror policer %lu red action to forward (at commit)\n", sai_policer);
+            SX_LOG_DBG("Fixing acl mirror policer %lu red action to forward (at commit)\n", sai_policer);
             policer_attrs_for_mirror.red_action = SX_POLICER_ACTION_FORWARD_SET_RED_COLOR;
         }
 
@@ -972,13 +1019,31 @@ static sai_status_t sai_policer_commit_changes(_In_ sai_object_id_t sai_policer)
             (sx_status = sx_api_policer_set(gh_sdk,
                                             SX_ACCESS_CMD_EDIT,
                                             &(policer_attrs_for_mirror),
-                                            &(policer_entry->sx_policer_id_mirror))
+                                            &(policer_entry->sx_policer_id_acl_mirror))
             )) {
             SX_LOG_ERR(
-                "Failed to commit for mirror sx policer0x%" PRIx64 ". sai_policer:0x%" PRIx64 ". Error message:%s.\n",
-                policer_entry->sx_policer_id_mirror,
+                "Failed to edit acl mirror sx policer 0x%" PRIx64 ". sai_policer:0x%" PRIx64 ". Error message:%s.\n",
+                policer_entry->sx_policer_id_acl_mirror,
                 sai_policer,
                 SX_STATUS_MSG(sx_status));
+
+            SX_LOG_EXIT();
+            return sdk_to_sai(sx_status);
+        }
+    }
+
+    if (policer_entry->sx_policer_id_span_session != SX_POLICER_ID_INVALID) {
+        SX_LOG_DBG("Changing span mirror sx policer:0x%" PRIx64
+                   ". sai_policer:0x%" PRIx64 ".\n", policer_entry->sx_policer_id_span_session, sai_policer);
+        policer_entry->sx_policer_attr.is_host_ifc_policer = false;
+        policer_entry->sx_policer_attr.is_span_session_policer = true;
+
+        sx_status = sx_api_policer_set(gh_sdk, SX_ACCESS_CMD_EDIT, &(policer_entry->sx_policer_attr),
+                                       &(policer_entry->sx_policer_id_span_session));
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to commit for span mirror sx policer0x%" PRIx64 ". sai_policer:0x%" PRIx64 "."
+                       "Error message:%s.\n", policer_entry->sx_policer_id_span_session, sai_policer,
+                       SX_STATUS_MSG(sx_status));
 
             SX_LOG_EXIT();
             return sdk_to_sai(sx_status);
@@ -989,81 +1054,65 @@ static sai_status_t sai_policer_commit_changes(_In_ sai_object_id_t sai_policer)
     return sai_status;
 }
 
-static sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key,
-                                         _In_ sai_attribute_t         sai_attr,
-                                         _In_ char                  * attr_name)
+sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key,
+                                  _In_ sai_attribute_t         sai_attr,
+                                  _In_ char                  * attr_name)
 {
-    sai_status_t            sai_status;
+    sai_status_t            status = SAI_STATUS_SUCCESS;
     sx_policer_attributes_t sx_policer_attribs;
-    sai_object_type_t       obj_type;
     bool                    is_used_for_mirror = false;
 
     SX_LOG_ENTER();
 
     memset(&sx_policer_attribs, 0, sizeof(sx_policer_attribs));
 
-    obj_type = sai_object_type_query(key->key.object_id);
-    if (SAI_OBJECT_TYPE_POLICER != obj_type) {
-        SX_LOG_ERR("Unexpected obect type:%s, expected policer.\n", SAI_TYPE_STR(obj_type));
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
+    if (SAI_OBJECT_TYPE_POLICER != sai_object_type_query(key->key.object_id)) {
+        SX_LOG_ERR("Unexpected object type:%s, expected policer.\n",
+                   SAI_TYPE_STR(sai_object_type_query(key->key.object_id)));
+        goto out;
     }
 
-    policer_db_cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
-
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = sai_policer_get_sx_attribs_internal(key, &sx_policer_attribs, false))) {
+    status = sai_policer_get_sx_attribs_internal(key, &sx_policer_attribs, false);
+    if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to obtain attribute value.\n");
-        policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
-        SX_LOG_EXIT();
-        return sai_status;
+        goto out;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = fill_policer_data(false, 1, &sai_attr, &sx_policer_attribs))) {
-        policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
-        SX_LOG_EXIT();
-        return sai_status;
+    status = fill_policer_data(false, 1, &sai_attr, &sx_policer_attribs);
+    if (SAI_ERR(status)) {
+        goto out;
     }
 
-    sai_status = mlnx_mirror_policer_is_used(key->key.object_id, &is_used_for_mirror);
-    if (SAI_ERR(sai_status)) {
-        policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
-        SX_LOG_EXIT();
-        return sai_status;
+    status = mlnx_mirror_policer_is_used(key->key.object_id, &is_used_for_mirror);
+    if (SAI_ERR(status)) {
+        goto out;
     }
 
     if (is_used_for_mirror) {
-        sai_status = mlnx_mirror_policer_sx_attrs_validate(&sx_policer_attribs);
-        if (SAI_ERR(sai_status)) {
-            policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
-            SX_LOG_EXIT();
-            return sai_status;
+        status = mlnx_mirror_policer_sx_attrs_validate(&sx_policer_attribs);
+        if (SAI_ERR(status)) {
+            goto out;
         }
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = db_write_sai_policer_attribs(key->key.object_id, &(sx_policer_attribs)))) {
+    status = db_write_sai_policer_attribs(key->key.object_id, &(sx_policer_attribs));
+    if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to change attribute for policer:0x%" PRIx64 ", attribute: %s.\n", key->key.object_id,
                    attr_name);
-        policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
-        SX_LOG_EXIT();
-        return sai_status;
+        goto out;
     }
 
-    if (SAI_STATUS_SUCCESS != (sai_status = sai_policer_commit_changes(key->key.object_id))) {
+    status = sai_policer_commit_changes(key->key.object_id);
+    if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to commit policer changes for sai_policer:0x%" PRIx64 ", attribute: %s.\n",
                    key->key.object_id,
                    attr_name);
-        policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
-        SX_LOG_EXIT();
-        return sai_status;
+        goto out;
     }
 
-    msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
-    policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
+out:
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 
@@ -1079,9 +1128,11 @@ static sai_status_t sai_policer_attr_set_wrapper(_In_ const sai_object_key_t    
     UNREFERENCED_PARAMETER(arg);
 
     SX_LOG_ENTER();
+    sai_db_write_lock();
     sai_attr.id = attr_id;
     sai_attr.value = *value;
     sai_status = sai_policer_attr_set(key, sai_attr, attr_name);
+    sai_db_unlock();
     SX_LOG_DBG("Result of setting %s:%d\n", attr_name, sai_status);
     SX_LOG_EXIT();
 
@@ -1202,17 +1253,6 @@ static sai_status_t sai_policer_red_packet_action_set(_In_ const sai_object_key_
                                           arg);
     SX_LOG_EXIT();
     return status;
-}
-
-static void policer_key_to_str(_In_ sai_object_id_t policer_id, _Out_ char *key_str)
-{
-    uint32_t policer_db_index = 0;
-
-    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(policer_id, SAI_OBJECT_TYPE_POLICER, &policer_db_index, NULL)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "invalid policer key");
-    } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "policer key:%x", policer_db_index);
-    }
 }
 
 static sai_status_t sx_meter_type_to_sai(_In_ sx_policer_meter_t sx_val, _Out_ int32_t* sai_val)
@@ -1711,7 +1751,6 @@ static sai_status_t fill_policer_data(_In_ bool                   set_defaults,
         return status;
     }
 
-
     if (SAI_STATUS_SUCCESS !=
         (status = fill_policer_cir_attrib(attr_count, attr_list, sx_policer_attribs))) {
         SX_LOG_EXIT();
@@ -1729,7 +1768,6 @@ static sai_status_t fill_policer_data(_In_ bool                   set_defaults,
         SX_LOG_EXIT();
         return status;
     }
-
 
     if (SAI_STATUS_SUCCESS !=
         (status = fill_policer_green_action_attrib(attr_count, attr_list, sx_policer_attribs))) {
@@ -1759,82 +1797,50 @@ static sai_status_t fill_policer_data(_In_ bool                   set_defaults,
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t mlnx_policer_db_idx_to_data(_In_ mlnx_shm_rm_array_idx_t           idx,
+                                         _Out_ mlnx_policer_shm_array_entry_t **policer)
+{
+    return mlnx_shm_rm_array_idx_to_ptr(idx, (void **)policer);
+}
+
 /*
- *  Returns the value from g_sai_db_ptr->policers_db at db_policers_entry_index.
+ *  Returns the value from shm array at id.policer_db_idx.
  */
 sai_status_t db_get_sai_policer_data(_In_ sai_object_id_t            sai_policer_id,
                                      _Out_ mlnx_policer_db_entry_t** policer_entry)
 {
-    sai_status_t sai_status;
-    uint32_t     db_policers_entry_index;
-
+    sai_status_t                    status;
+    mlnx_object_id_t                mlnx_policer_obj = {0};
+    mlnx_policer_shm_array_entry_t *policer_array;
 
     SX_LOG_ENTER();
 
     SX_LOG_DBG("Input policer:0x%" PRIx64 "\n", sai_policer_id);
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_object_to_type(sai_policer_id, SAI_OBJECT_TYPE_POLICER, &db_policers_entry_index, NULL))) {
-        SX_LOG_ERR("Failed to obtain policer db index. Invalid object type:%s passed in. object_id:0x%" PRIx64 "\n",
-                   SAI_TYPE_STR(sai_policer_id),
-                   sai_policer_id);
-        SX_LOG_EXIT();
-        return sai_status;
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_POLICER, sai_policer_id, &mlnx_policer_obj);
+    if (SAI_ERR(status)) {
+        return status;
     }
 
-    if (db_policers_entry_index >= MAX_POLICERS) {
-        SX_LOG_ERR("Invalid policer index: %d\n", db_policers_entry_index);
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
+    status = mlnx_policer_db_idx_to_data(mlnx_policer_obj.id.policer_db_idx, &policer_array);
+    if (SAI_ERR(status)) {
+        return status;
     }
 
-    if (!g_sai_db_ptr->policers_db[db_policers_entry_index].valid) {
-        SX_LOG_ERR("Invalid policer entry requested; marked as invalid. index:%d\n", db_policers_entry_index);
-        SX_LOG_EXIT();
-        return SAI_STATUS_ITEM_NOT_FOUND;
+    if (!policer_array->array_hdr.is_used) {
+        SX_LOG_ERR("policer  0x%" PRIx64 " is removed or not created yet.\n", sai_policer_id);
+        return SAI_STATUS_FAILURE;
     }
-
-    *policer_entry = &(g_sai_db_ptr->policers_db[db_policers_entry_index]);
-
-    SX_LOG_DBG("policer_db table index:%d\n", db_policers_entry_index);
-
-    SX_LOG_EXIT();
+    *policer_entry = &policer_array->data;
     return SAI_STATUS_SUCCESS;
 }
 
 
-static sai_status_t db_remove_sai_policer_data(_In_ uint32_t db_policers_entry_index)
-{
-    sai_status_t sai_status = SAI_STATUS_SUCCESS;
-
-    SX_LOG_ENTER();
-
-    SX_LOG_DBG("db_policers_entry_index:%d\n", db_policers_entry_index);
-
-    if (db_policers_entry_index >= MAX_POLICERS) {
-        SX_LOG_ERR("Invalid Policers table index:%d\n", db_policers_entry_index);
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-
-    if (g_sai_db_ptr->policers_db[db_policers_entry_index].valid) {
-        db_reset_policer_entry(db_policers_entry_index);
-        g_sai_db_ptr->policers_db[db_policers_entry_index].valid = false;
-    } else {
-        sai_status = SAI_STATUS_INVALID_PARAMETER;
-        SX_LOG_ERR("Trying to free unoccupied entry in policers db table. index:%d\n", db_policers_entry_index);
-    }
-
-    SX_LOG_EXIT();
-    return sai_status;
-}
-
 static sai_status_t db_write_sai_policer_attribs(_In_ sai_object_id_t          sai_policer_id,
                                                  _In_ sx_policer_attributes_t* sx_policer_attr)
 {
-    uint32_t     db_policers_entry_index;
-    sai_status_t status;
+    sai_status_t             status;
+    mlnx_policer_db_entry_t* policer_db_data = NULL;
 
     SX_LOG_ENTER();
 
@@ -1849,59 +1855,51 @@ static sai_status_t db_write_sai_policer_attribs(_In_ sai_object_id_t          s
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(sai_policer_id, SAI_OBJECT_TYPE_POLICER, &db_policers_entry_index, NULL))) {
-        SX_LOG_ERR("Failed to obtain policer db index. object_id:0x%" PRIx64 "\n", sai_policer_id);
-        SX_LOG_EXIT();
+    if (SAI_ERR(status = db_get_sai_policer_data(sai_policer_id, &policer_db_data))) {
+        SX_LOG_ERR("Failed to obtain policer db data for sai policer:0x%" PRIx64 "\n", sai_policer_id);
         return status;
     }
 
-    if (MAX_POLICERS <= db_policers_entry_index) {
-        SX_LOG_ERR("Invalid policer index:%d\n", db_policers_entry_index);
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (!g_sai_db_ptr->policers_db[db_policers_entry_index].valid) {
-        SX_LOG_ERR("Policer id:0x%" PRIx64 " resolved at invalid at db index:%d \n",
-                   sai_policer_id,
-                   db_policers_entry_index
-                   );
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_OBJECT_ID;
-    }
-
-    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_attr = *sx_policer_attr;
-    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_attr.ir_units = SX_POLICER_IR_UNITS_10_POWER_3_E;
+    policer_db_data->sx_policer_attr = *sx_policer_attr;
+    policer_db_data->sx_policer_attr.ir_units = SX_POLICER_IR_UNITS_10_POWER_3_E;
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
 
-void db_reset_policer_entry(_In_ uint32_t db_policers_entry_index)
+void db_reset_policer_entry(_In_ mlnx_policer_db_entry_t* policers_entry_p)
 {
     SX_LOG_ENTER();
-    assert(db_policers_entry_index < MAX_POLICERS);
-    g_sai_db_ptr->policers_db[db_policers_entry_index].valid = false;
-    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_id_trap = SX_POLICER_ID_INVALID;
-    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_id_acl = SX_POLICER_ID_INVALID;
-    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_id_mirror = SX_POLICER_ID_INVALID;
-    memset(&(g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_attr), 0,
-           sizeof(g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_attr));
+    assert(policers_entry_p != NULL);
+
+    policers_entry_p->sx_policer_id_trap = SX_POLICER_ID_INVALID;
+    policers_entry_p->sx_policer_id_acl = SX_POLICER_ID_INVALID;
+    policers_entry_p->sx_policer_id_acl_mirror = SX_POLICER_ID_INVALID;
+    policers_entry_p->sx_policer_id_span_session = SX_POLICER_ID_INVALID;
+
+    memset(&policers_entry_p->sx_policer_attr, 0, sizeof(policers_entry_p->sx_policer_attr));
     SX_LOG_EXIT();
 }
 
 uint32_t mlnx_policer_db_free_entries_count(bool is_hostif)
 {
-    uint32_t ii, rm_limit, policers_created = 0, hostif_policers_created = 0;
+    uint32_t                        ii, rm_limit, policers_created = 0, hostif_policers_created = 0;
+    mlnx_policer_shm_array_entry_t *policer_array;
 
-    for (ii = 0; ii < MAX_POLICERS; ii++) {
-        if (g_sai_db_ptr->policers_db[ii].valid) {
-            if (g_sai_db_ptr->policers_db[ii].sx_policer_id_trap != SX_POLICER_ID_INVALID) {
+    for (ii = 0; ii < mlnx_shm_rm_array_size_get(MLNX_SHM_RM_ARRAY_TYPE_POLICER); ii++) {
+        mlnx_shm_rm_array_idx_t idx;
+        idx.type = MLNX_SHM_RM_ARRAY_TYPE_POLICER;
+        idx.idx = ii;
+        if (SAI_ERR(mlnx_policer_db_idx_to_data(idx, &policer_array))) {
+            SX_LOG_ERR("get policer array item failed \n");
+            return 0;
+        }
+        if (policer_array->array_hdr.is_used) {
+            if (policer_array->data.sx_policer_id_trap != SX_POLICER_ID_INVALID) {
                 hostif_policers_created++;
             }
 
-            if ((g_sai_db_ptr->policers_db[ii].sx_policer_id_acl != SX_POLICER_ID_INVALID) ||
-                (g_sai_db_ptr->policers_db[ii].sx_policer_id_mirror != SX_POLICER_ID_INVALID)) {
+            if ((policer_array->data.sx_policer_id_acl != SX_POLICER_ID_INVALID) ||
+                (policer_array->data.sx_policer_id_acl_mirror != SX_POLICER_ID_INVALID)) {
                 policers_created++;
             }
         }
@@ -1925,10 +1923,11 @@ uint32_t mlnx_policer_db_free_entries_count(bool is_hostif)
     }
 }
 
-sai_status_t db_init_sai_policer_data(_In_ sx_policer_attributes_t* policer_attr,
-                                      _Out_ uint32_t              * db_policers_entry_index_p)
+sai_status_t db_init_sai_policer_data(_In_ sx_policer_attributes_t * policer_attr,
+                                      _Out_ mlnx_shm_rm_array_idx_t* shm_idx_policers_p)
 {
-    uint32_t ii;
+    mlnx_policer_shm_array_entry_t *policer_entry = NULL;
+    sai_status_t                    status;
 
     SX_LOG_ENTER();
 
@@ -1938,58 +1937,60 @@ sai_status_t db_init_sai_policer_data(_In_ sx_policer_attributes_t* policer_attr
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    if (NULL == db_policers_entry_index_p) {
-        SX_LOG_ERR("NULL policer index\n");
+    if (NULL == shm_idx_policers_p) {
+        SX_LOG_ERR("NULL pointer for policer share memory array index\n");
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    for (ii = 0; ii < MAX_POLICERS; ii++) {
-        if (false == g_sai_db_ptr->policers_db[ii].valid) {
-            break;
-        }
-    }
+    status = mlnx_policer_db_alloc(&policer_entry, shm_idx_policers_p);
 
-    if (MAX_POLICERS == ii) {
-        SX_LOG_ERR("Policers table full\n");
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Policer is not allocated \n");
         SX_LOG_EXIT();
-        return SAI_STATUS_TABLE_FULL;
+        return status;
     }
 
-    db_reset_policer_entry(ii);
+    db_reset_policer_entry(&policer_entry->data);
 
-    g_sai_db_ptr->policers_db[ii].valid = true;
-    g_sai_db_ptr->policers_db[ii].sx_policer_attr.ir_units = SX_POLICER_IR_UNITS_10_POWER_3_E;
-    g_sai_db_ptr->policers_db[ii].sx_policer_attr = *policer_attr;
+    policer_entry->data.sx_policer_attr = *policer_attr;
+    policer_entry->data.sx_policer_attr.ir_units = SX_POLICER_IR_UNITS_10_POWER_3_E;
 
-    *db_policers_entry_index_p = ii;
-
-    SX_LOG_DBG("Created sai_policer db entry, at index : %d. NOTE, no sx_policer created.\n", ii);
-    log_sx_policer_attributes(g_sai_db_ptr->policers_db[ii].sx_policer_id_trap,
-                              &(g_sai_db_ptr->policers_db[ii].sx_policer_attr));
+    SX_LOG_DBG("Created sai_policer share memory array entry, at index : %u. "
+               "NOTE, no sx_policer created.\n", shm_idx_policers_p->idx);
+    log_sx_policer_attributes(policer_entry->data.sx_policer_id_trap, policer_attr);
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t db_find_sai_policer_entry_ind(_In_ sx_policer_id_t sx_policer, _Out_ uint32_t* entry_index)
+sai_status_t db_find_sai_policer_entry_ind(_In_ sx_policer_id_t sx_policer, _Out_ mlnx_shm_rm_array_idx_t* idx_p)
 {
-    sai_status_t status;
-    uint32_t     policer_entry_ind;
-    uint32_t     policer_entry_cnt = MLNX_SAI_ARRAY_LEN(g_sai_db_ptr->policers_db);
+    sai_status_t                    status;
+    uint32_t                        policer_entry_ind;
+    uint32_t                        policer_entry_cnt = mlnx_shm_rm_array_size_get(MLNX_SHM_RM_ARRAY_TYPE_POLICER);
+    mlnx_policer_shm_array_entry_t *policer_array;
+    mlnx_shm_rm_array_idx_t         idx;
 
-    if (NULL == entry_index) {
+    idx.type = MLNX_SHM_RM_ARRAY_TYPE_POLICER;
+
+    if (NULL == idx_p) {
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
     for (policer_entry_ind = 0; policer_entry_ind < policer_entry_cnt; policer_entry_ind++) {
-        if (!g_sai_db_ptr->policers_db[policer_entry_ind].valid) {
+        idx.idx = policer_entry_ind;
+        if (SAI_ERR(status = mlnx_policer_db_idx_to_data(idx, &policer_array))) {
+            SX_LOG_ERR("get Policer array item failed \n");
+            return status;
+        }
+        if (!policer_array->array_hdr.is_used) {
             continue;
         }
-        if (sx_policer == g_sai_db_ptr->policers_db[policer_entry_ind].sx_policer_id_trap) {
+        if (sx_policer == policer_array->data.sx_policer_id_trap) {
             break;
         }
-        if (sx_policer == g_sai_db_ptr->policers_db[policer_entry_ind].sx_policer_id_acl) {
+        if (sx_policer == policer_array->data.sx_policer_id_acl) {
             break;
         }
     }
@@ -1997,7 +1998,7 @@ sai_status_t db_find_sai_policer_entry_ind(_In_ sx_policer_id_t sx_policer, _Out
     if (policer_entry_ind == policer_entry_cnt) {
         status = SAI_STATUS_ITEM_NOT_FOUND;
     } else {
-        *entry_index = policer_entry_ind;
+        *idx_p = idx;
         status = SAI_STATUS_SUCCESS;
     }
 
@@ -2010,81 +2011,50 @@ static sai_status_t mlnx_sai_create_policer(_Out_ sai_object_id_t      *policer_
                                             _In_ uint32_t               attr_count,
                                             _In_ const sai_attribute_t *attr_list)
 {
-    sai_status_t            sai_status;
-    sai_object_id_t         sai_policer = SAI_NULL_OBJECT_ID;
-    sx_policer_attributes_t sai_policer_attr;
-    uint32_t                sai_policer_db_index = 0;
-    char                    list_str[MAX_LIST_VALUE_STR_LEN] = { 0 };
-    char                    key_str[MAX_KEY_STR_LEN] = { 0 };
+    sai_status_t            status;
+    sx_policer_attributes_t sai_policer_attr = {0};
+    mlnx_shm_rm_array_idx_t idx = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
 
     SX_LOG_ENTER();
 
     memset(&sai_policer_attr, 0, sizeof(sai_policer_attr));
 
-    if (NULL == policer_id) {
-        SX_LOG_ERR("NULL policer ID parameter\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_POLICER, policer_id);
+    if (SAI_ERR(status)) {
+        return status;
     }
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_POLICER);
 
     if (SAI_STATUS_SUCCESS !=
-        (sai_status = check_attribs_metadata(
-             attr_count,
-             attr_list,
-             SAI_OBJECT_TYPE_POLICER,
-             policer_vendor_attribs,
-             SAI_COMMON_API_CREATE))) {
-        SX_LOG_ERR("Failed policer attribs check during create operation, SAI status:%d\n", sai_status);
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = sai_attr_list_to_str(
-             attr_count,
-             attr_list,
-             SAI_OBJECT_TYPE_POLICER,
-             MAX_LIST_VALUE_STR_LEN,
-             list_str))) {
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-
-    SX_LOG_NTC("Create policer with attributes: %s\n", list_str);
-
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = fill_policer_data(true, attr_count, attr_list, &sai_policer_attr))) {
+        (status = fill_policer_data(true, attr_count, attr_list, &sai_policer_attr))) {
         SX_LOG_NTC("Initializing policer data failed\n");
         SX_LOG_EXIT();
-        return sai_status;
+        return status;
     }
 
     sai_db_write_lock();
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = db_init_sai_policer_data(&sai_policer_attr, &sai_policer_db_index))) {
+    status = db_init_sai_policer_data(&sai_policer_attr, &idx);
+    if (SAI_ERR(status)) {
         SX_LOG_NTC("Failed processing policer initialization data\n");
         SX_LOG_EXIT();
-        return sai_status;
+        goto out;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_create_object(SAI_OBJECT_TYPE_POLICER, sai_policer_db_index, NULL, &sai_policer))) {
-        db_remove_sai_policer_data(sai_policer_db_index);
-        sai_db_unlock();
-        SX_LOG_EXIT();
-        return sai_status;
+    status = mlnx_policer_oid_create(idx, policer_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed create policer oid\n");
+        goto out;
     }
 
+    MLNX_LOG_OID_CREATED(*policer_id);
+
+out:
     sai_db_unlock();
-
-    *policer_id = sai_policer;
-    policer_key_to_str(*policer_id, key_str);
-    SX_LOG_NTC("Created policer %s\n", key_str);
 
     SX_LOG_EXIT();
 
-    return sai_status;
+    return status;
 }
 
 static sai_status_t mlnx_validate_port_policer_for_remove(_In_ sai_object_id_t sai_policer)
@@ -2102,7 +2072,7 @@ static sai_status_t mlnx_validate_port_policer_for_remove(_In_ sai_object_id_t s
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
-    if (SAI_STATUS_SUCCESS != (status = db_get_sai_policer_data(sai_policer, &policer_db_data))) {
+    if (SAI_ERR(status = db_get_sai_policer_data(sai_policer, &policer_db_data))) {
         SX_LOG_ERR("Failed to obtain policer db data for sai policer:0x%" PRIx64 "\n", sai_policer);
         return status;
     }
@@ -2137,40 +2107,37 @@ static sai_status_t mlnx_sai_remove_policer(_In_ sai_object_id_t sai_policer_id)
     sai_status_t             sai_status;
     sx_status_t              sx_status;
     sx_policer_attributes_t  policer_attr;
-    char                     key_str[MAX_KEY_STR_LEN] = { 0 };
     mlnx_policer_db_entry_t* policer_db_data = NULL;
-    uint32_t                 db_policers_entry_index;
-    sai_object_type_t        obj_type;
+    mlnx_object_id_t         mlnx_policer_obj = {0};
 
     SX_LOG_ENTER();
 
     memset(&policer_attr, 0, sizeof(policer_attr));
 
-    obj_type = sai_object_type_query(sai_policer_id);
+    sai_status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_POLICER, sai_policer_id, &mlnx_policer_obj);
 
-    if (SAI_OBJECT_TYPE_POLICER != obj_type) {
-        SX_LOG_ERR("Invalid obect type:%s, expected policer.\n", SAI_TYPE_STR(obj_type));
-        return SAI_STATUS_INVALID_PARAMETER;
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Invalid policer object 0x%x\n", sai_policer_id);
+        return sai_status;
     }
 
-    policer_key_to_str(sai_policer_id, key_str);
-    SX_LOG_NTC("Remove policer %s,:0x%" PRIx64 "\n", key_str, sai_policer_id);
+    MLNX_LOG_OID_REMOVE(sai_policer_id);
 
-    policer_db_cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+    sai_db_write_lock();
 
-    if (SAI_STATUS_SUCCESS != (sai_status = db_get_sai_policer_data(sai_policer_id, &policer_db_data))) {
+    if (SAI_ERR(sai_status = db_get_sai_policer_data(sai_policer_id, &policer_db_data))) {
         SX_LOG_ERR("Failed to obtain policer db data for sai policer:0x%" PRIx64 "\n", sai_policer_id);
         goto exit;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_validate_port_policer_for_remove(sai_policer_id))) {
+    if (SAI_ERR(sai_status = mlnx_validate_port_policer_for_remove(sai_policer_id))) {
         SX_LOG_ERR("Failed to remove port policer entries. object_id:0x%" PRIx64 "\n", sai_policer_id);
         goto exit;
     }
 
     if (policer_db_data->sx_policer_id_acl != SX_POLICER_ID_INVALID) {
         policer_attr.is_host_ifc_policer = false;
+        policer_attr.is_span_session_policer = false;
         if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_set(gh_sdk,
                                                                  SX_ACCESS_CMD_DESTROY,
                                                                  &policer_attr,
@@ -2185,6 +2152,7 @@ static sai_status_t mlnx_sai_remove_policer(_In_ sai_object_id_t sai_policer_id)
     }
     if (policer_db_data->sx_policer_id_trap != SX_POLICER_ID_INVALID) {
         policer_attr.is_host_ifc_policer = true;
+        policer_attr.is_span_session_policer = false;
         if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_set(gh_sdk,
                                                                  SX_ACCESS_CMD_DESTROY,
                                                                  &policer_attr,
@@ -2197,55 +2165,54 @@ static sai_status_t mlnx_sai_remove_policer(_In_ sai_object_id_t sai_policer_id)
         }
         policer_db_data->sx_policer_id_trap = SX_POLICER_ID_INVALID;
     }
-    if (policer_db_data->sx_policer_id_mirror != SX_POLICER_ID_INVALID) {
+    if (policer_db_data->sx_policer_id_acl_mirror != SX_POLICER_ID_INVALID) {
         policer_attr.is_host_ifc_policer = false;
+        policer_attr.is_span_session_policer = false;
         if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_set(gh_sdk,
                                                                  SX_ACCESS_CMD_DESTROY,
                                                                  &policer_attr,
-                                                                 &policer_db_data->sx_policer_id_mirror))) {
+                                                                 &policer_db_data->sx_policer_id_acl_mirror))) {
             SX_LOG_ERR("Failed to destroy acl SX policer:0x%" PRIx64 ". error message:%s.\n",
-                       policer_db_data->sx_policer_id_mirror,
+                       policer_db_data->sx_policer_id_acl_mirror,
                        SX_STATUS_MSG(sx_status));
             sai_status = sdk_to_sai(sx_status);
             goto exit;
         }
-        policer_db_data->sx_policer_id_mirror = SX_POLICER_ID_INVALID;
+        policer_db_data->sx_policer_id_acl_mirror = SX_POLICER_ID_INVALID;
+    }
+    if (policer_db_data->sx_policer_id_span_session != SX_POLICER_ID_INVALID) {
+        policer_attr.is_host_ifc_policer = false;
+        policer_attr.is_span_session_policer = true;
+        sx_status = sx_api_policer_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &policer_attr,
+                                       &policer_db_data->sx_policer_id_span_session);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to destroy acl SX policer:0x%" PRIx64 ". error message:%s.\n",
+                       policer_db_data->sx_policer_id_acl_mirror,
+                       SX_STATUS_MSG(sx_status));
+            sai_status = sdk_to_sai(sx_status);
+            goto exit;
+        }
+        policer_db_data->sx_policer_id_span_session = SX_POLICER_ID_INVALID;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_object_to_type(sai_policer_id, SAI_OBJECT_TYPE_POLICER, &db_policers_entry_index, NULL))) {
-        SX_LOG_ERR("Failed to obtain policer db index. object_id:0x%" PRIx64 "\n", sai_policer_id);
-        goto exit;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = db_remove_sai_policer_data(db_policers_entry_index))) {
-        SX_LOG_ERR("Failed to remove item from policer db. sai object_id:0x%" PRIx64 ", %s\n", sai_policer_id,
-                   key_str);
+    db_reset_policer_entry(policer_db_data);
+    sai_status = mlnx_shm_rm_array_free(mlnx_policer_obj.id.policer_db_idx);
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Failed to remove item from policer db. sai object_id:0x%" PRIx64 "\n", sai_policer_id);
         goto exit;
     }
 
 exit:
-    msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
-    policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
+    sai_db_unlock();
     SX_LOG_EXIT();
     return sai_status;
 }
 
 static sai_status_t mlnx_sai_set_policer_attribute(_In_ sai_object_id_t policer_id, _In_ const sai_attribute_t *attr)
 {
-    sai_status_t           status;
     const sai_object_key_t key = { .key.object_id = policer_id };
-    char                   key_str[MAX_KEY_STR_LEN] = { 0 };
 
-    SX_LOG_ENTER();
-
-    policer_key_to_str(policer_id, key_str);
-    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_POLICER, policer_vendor_attribs, attr);
-
-    SX_LOG_EXIT();
-
-    return status;
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_POLICER, attr);
 }
 
 static sai_status_t mlnx_sai_get_policer_attribute(_In_ sai_object_id_t     policer_id,
@@ -2253,16 +2220,8 @@ static sai_status_t mlnx_sai_get_policer_attribute(_In_ sai_object_id_t     poli
                                                    _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = policer_id };
-    char                   key_str[MAX_KEY_STR_LEN] = { 0 };
-    sai_status_t           status;
 
-    SX_LOG_ENTER();
-
-    policer_key_to_str(policer_id, key_str);
-    status = sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_POLICER, policer_vendor_attribs, attr_count, attr_list);
-
-    SX_LOG_EXIT();
-    return status;
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_POLICER, attr_count, attr_list);
 }
 
 sai_status_t mlnx_policer_stats_clear(_In_ sx_policer_id_t sx_policer)
@@ -2329,32 +2288,29 @@ static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t      policer_id,
     policer_counters_clear.clear_violation_counter = true;
     if (number_of_counters != 1) {
         SX_LOG_ERR("Only 1 counter is supported. policer:0x%" PRIx64 ".\n", policer_id);
-        sai_status = SAI_STATUS_INVALID_PARAMETER;
-        goto exit;
+        return SAI_STATUS_INVALID_PARAMETER;
     }
     if (NULL == counter_ids) {
         SX_LOG_ERR("NULL counter_ids. policer:0x%" PRIx64 ".\n", policer_id);
-        sai_status = SAI_STATUS_INVALID_PARAMETER;
-        goto exit;
+        return SAI_STATUS_INVALID_PARAMETER;
     }
     /* SDK supports only dropped packets. */
     if (SAI_POLICER_STAT_PACKETS != counter_ids[0]) {
         SX_LOG_NTC("Only SAI_POLICER_STAT_PACKETS are supported. policer:0x%" PRIx64 ".\n", policer_id);
-        sai_status = SAI_STATUS_ATTR_NOT_SUPPORTED_0;
-        goto exit;
+        return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
     }
     if ((!is_clear) && (NULL == counters)) {
         SX_LOG_ERR("NULL out counters array. policer:0x%" PRIx64 ".\n", policer_id);
-        sai_status = SAI_STATUS_INVALID_PARAMETER;
-        goto exit;
+        return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    policer_db_cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+    sai_db_write_lock();
+
     if (SAI_STATUS_SUCCESS != (sai_status = db_get_sai_policer_data(policer_id, &policer_entry))) {
         goto exit;
     }
     log_sx_policer_attributes(policer_entry->sx_policer_id_trap, &policer_entry->sx_policer_attr);
-    SX_LOG_DBG("entry is valid:%d\n", policer_entry->valid);
+    SX_LOG_DBG("entry is valid\n");
 
     if (SX_POLICER_ID_INVALID != policer_entry->sx_policer_id_acl) {
         if (is_clear) {
@@ -2388,14 +2344,30 @@ static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t      policer_id,
         }
     }
 
-    if (SX_POLICER_ID_INVALID != policer_entry->sx_policer_id_mirror) {
+    if (SX_POLICER_ID_INVALID != policer_entry->sx_policer_id_acl_mirror) {
         if (is_clear) {
-            sai_status = mlnx_policer_stats_clear(policer_entry->sx_policer_id_mirror);
+            sai_status = mlnx_policer_stats_clear(policer_entry->sx_policer_id_acl_mirror);
             if (SAI_ERR(sai_status)) {
                 goto exit;
             }
         } else {
-            sai_status = mlnx_policer_stats_get(policer_entry->sx_policer_id_mirror, &mirror_counter);
+            sai_status = mlnx_policer_stats_get(policer_entry->sx_policer_id_acl_mirror, &mirror_counter);
+            if (SAI_ERR(sai_status)) {
+                goto exit;
+            }
+
+            aggregated_counter += mirror_counter;
+        }
+    }
+
+    if (SX_POLICER_ID_INVALID != policer_entry->sx_policer_id_span_session) {
+        if (is_clear) {
+            sai_status = mlnx_policer_stats_clear(policer_entry->sx_policer_id_span_session);
+            if (SAI_ERR(sai_status)) {
+                goto exit;
+            }
+        } else {
+            sai_status = mlnx_policer_stats_get(policer_entry->sx_policer_id_span_session, &mirror_counter);
             if (SAI_ERR(sai_status)) {
                 goto exit;
             }
@@ -2451,7 +2423,7 @@ static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t      policer_id,
     }
 
 exit:
-    policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
+    sai_db_unlock();
     SX_LOG_EXIT();
     return sai_status;
 }
@@ -2599,6 +2571,8 @@ static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ m
     /* We are using the original policer settings saved in the DB.
      *  But need to set this flag to false for storm policer API to work. */
     storm_ctrl_params.policer_params.is_host_ifc_policer = false;
+    storm_ctrl_params.policer_params.is_span_session_policer = false;
+
     if (SX_STATUS_SUCCESS !=
         (sx_status =
              storm_policer_functions.sx_api_port_storm_control_set_p(
@@ -2698,6 +2672,8 @@ static sai_status_t setup_storm_item(_In_ sai_object_id_t        sai_policer,
     /* We are using the original policer settings saved in the DB.
      *  But need to set this flag to false for storm policer API to work.*/
     storm_ctrl_params.policer_params.is_host_ifc_policer = false;
+    storm_ctrl_params.policer_params.is_span_session_policer = false;
+
     if (SX_STATUS_SUCCESS !=
         (sx_status = storm_policer_functions.sx_api_port_storm_control_set_p(
              gh_sdk,
@@ -2863,6 +2839,8 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
     /* We are using the original policer settings saved in the DB.
      *  But need to set this flag to false for storm policer API to work.*/
     storm_ctrl_params.policer_params.is_host_ifc_policer = false;
+    storm_ctrl_params.policer_params.is_span_session_policer = false;
+
     if (SX_STATUS_SUCCESS !=
         (sx_status =
              storm_policer_functions.sx_api_port_storm_control_set_p(gh_sdk, SX_ACCESS_CMD_DELETE,
@@ -2907,12 +2885,14 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
 
 static sai_status_t mlnx_sai_get_or_create_sx_policer_for_bind(_In_ sai_object_id_t   sai_policer,
                                                                _Out_ sx_policer_id_t* sx_policer,
-                                                               _In_ bool              is_host_if_policer)
+                                                               _In_ bool              is_host_if_policer,
+                                                               _In_ bool              is_span_policer)
 {
     sai_status_t             sai_status;
     sx_status_t              sx_status;
     mlnx_policer_db_entry_t *policer_data = NULL;
     sx_policer_id_t         *new_sx_policer = NULL;
+    sx_policer_attributes_t  policer_attr;
 
     SX_LOG_ENTER();
     if (SAI_STATUS_SUCCESS != (sai_status = db_get_sai_policer_data(sai_policer, &policer_data))) {
@@ -2922,19 +2902,30 @@ static sai_status_t mlnx_sai_get_or_create_sx_policer_for_bind(_In_ sai_object_i
     }
     SX_LOG_DBG("is_host_if_policer:%d\n", is_host_if_policer);
     log_sx_policer_attributes(policer_data->sx_policer_id_trap, &(policer_data->sx_policer_attr));
-    if (is_host_if_policer) {
-        new_sx_policer = &policer_data->sx_policer_id_trap;
-        policer_data->sx_policer_attr.is_host_ifc_policer = true;
+
+    memcpy(&policer_attr, &policer_data->sx_policer_attr, sizeof(policer_attr));
+    if (!is_span_policer) {
+        policer_attr.is_span_session_policer = false;
+
+        if (is_host_if_policer) {
+            new_sx_policer = &policer_data->sx_policer_id_trap;
+            policer_attr.is_host_ifc_policer = true;
+        } else {
+            new_sx_policer = &policer_data->sx_policer_id_acl;
+            policer_attr.is_host_ifc_policer = false;
+        }
     } else {
-        new_sx_policer = &policer_data->sx_policer_id_acl;
-        policer_data->sx_policer_attr.is_host_ifc_policer = false;
+        new_sx_policer = &policer_data->sx_policer_id_span_session;
+
+        policer_attr.is_host_ifc_policer = false;
+        policer_attr.is_span_session_policer = true;
     }
 
     if (SX_POLICER_ID_INVALID == *new_sx_policer) {
         if (SX_STATUS_SUCCESS !=
             (sx_status = sx_api_policer_set(gh_sdk,
                                             SX_ACCESS_CMD_CREATE,
-                                            &(policer_data->sx_policer_attr),
+                                            &policer_attr,
                                             new_sx_policer))) {
             SX_LOG_ERR("Failed to create policer, is_host_if_policer:%d error message:%s.\n",
                        is_host_if_policer,
@@ -2962,6 +2953,7 @@ static sai_status_t mlnx_sai_get_or_create_sx_policer_for_bind(_In_ sai_object_i
 
 sai_status_t mlnx_sai_get_or_create_regular_sx_policer_for_bind(_In_ sai_object_id_t   sai_policer,
                                                                 _In_ bool              is_host_if_policer,
+                                                                _In_ bool              is_span_policer,
                                                                 _Out_ sx_policer_id_t* sx_policer_id)
 {
     sai_status_t             sai_status;
@@ -2981,8 +2973,10 @@ sai_status_t mlnx_sai_get_or_create_regular_sx_policer_for_bind(_In_ sai_object_
         return sai_status;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_sai_get_or_create_sx_policer_for_bind(sai_policer, &sx_policer, is_host_if_policer))) {
+    sai_status = mlnx_sai_get_or_create_sx_policer_for_bind(sai_policer, &sx_policer, is_host_if_policer,
+                                                            is_span_policer);
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Failed to get or create sx policer - policer id 0x%" PRIx64 "\n", sai_policer);
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -2993,8 +2987,8 @@ sai_status_t mlnx_sai_get_or_create_regular_sx_policer_for_bind(_In_ sai_object_
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_get_or_create_mirror_sx_policer_for_bind(_In_ sai_object_id_t   sai_policer,
-                                                               _Out_ sx_policer_id_t *sx_policer_id)
+sai_status_t mlnx_sai_get_or_create_acl_mirror_sx_policer_for_bind(_In_ sai_object_id_t   sai_policer,
+                                                                   _Out_ sx_policer_id_t *sx_policer_id)
 {
     sai_status_t             status;
     sx_status_t              sx_status;
@@ -3009,7 +3003,7 @@ sai_status_t mlnx_sai_get_or_create_mirror_sx_policer_for_bind(_In_ sai_object_i
         return status;
     }
 
-    sx_mirror_policer = &policer_data->sx_policer_id_mirror;
+    sx_mirror_policer = &policer_data->sx_policer_id_acl_mirror;
 
     if (*sx_mirror_policer == SX_POLICER_ID_INVALID) {
         memcpy(&sx_policer_attrs_fixed, &policer_data->sx_policer_attr, sizeof(sx_policer_attrs_fixed));
@@ -3050,7 +3044,7 @@ static sai_status_t mlnx_sai_bind_policer_to_trap_group(_In_ sai_object_id_t sai
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_sai_get_or_create_regular_sx_policer_for_bind(sai_policer, true, &sx_policer))) {
+        (sai_status = mlnx_sai_get_or_create_regular_sx_policer_for_bind(sai_policer, true, false, &sx_policer))) {
         SX_LOG_ERR("Failed to obtain sx_policer_id. sai policer object_id:0x%" PRIx64 "\n", sai_policer);
         SX_LOG_EXIT();
         return sai_status;
@@ -3076,6 +3070,64 @@ static sai_status_t mlnx_sai_bind_policer_to_trap_group(_In_ sai_object_id_t sai
         sx_policer,
         group_id);
 
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_sai_update_span_session_policer(_In_ sx_span_session_id_t span_session_id,
+                                                  _In_ sai_object_id_t      prev_policer,
+                                                  _In_ sai_object_id_t      new_policer)
+{
+    sai_status_t    sai_status;
+    sx_status_t     sx_status;
+    sx_policer_id_t sx_policer;
+
+    SX_LOG_ENTER();
+
+    assert(span_session_id <= SPAN_SESSION_MAX);
+
+    if (mlnx_chip_is_spc()) {
+        SX_LOG_NTC("Span policer is not supported for SPC1\n");
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (prev_policer != SAI_NULL_OBJECT_ID) {
+        sai_status = mlnx_sai_get_or_create_regular_sx_policer_for_bind(prev_policer, false, true, &sx_policer);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to obtain sx_policer_id. sai policer object_id:0x%" PRIx64 "\n", prev_policer);
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+
+        sx_status = sx_api_span_session_policer_bind_set(gh_sdk, SX_ACCESS_CMD_UNBIND, span_session_id, sx_policer);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Policer unbind failed - %s\n", SX_STATUS_MSG(sx_status));
+            sai_status = sdk_to_sai(sx_status);
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+    }
+
+    if (new_policer != SAI_NULL_OBJECT_ID) {
+        sai_status = mlnx_sai_get_or_create_regular_sx_policer_for_bind(new_policer, false, true, &sx_policer);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to obtain sx_policer_id. sai policer object_id:0x%" PRIx64 "\n", new_policer);
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+
+        sx_status = sx_api_span_session_policer_bind_set(gh_sdk, SX_ACCESS_CMD_BIND, span_session_id, sx_policer);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Policer bind failed - %s\n", SX_STATUS_MSG(sx_status));
+            sai_status = sdk_to_sai(sx_status);
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+
+        SX_LOG_DBG("sx span session:%d. sai policer object_id:0x%" PRIx64 ". sx_policer_id:0x%" PRIx64 "\n",
+                   span_session_id, new_policer, sx_policer);
+    }
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;

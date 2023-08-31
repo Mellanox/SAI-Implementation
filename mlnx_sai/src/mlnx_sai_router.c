@@ -64,18 +64,14 @@ static const sai_vendor_attribute_entry_t router_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t          mlnx_router_obj_type_info =
-{ router_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
-static void router_key_to_str(_In_ sai_object_id_t vr_id, _Out_ char *key_str)
+static size_t virtual_router_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
 {
-    uint32_t vrid;
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
 
-    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(vr_id, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, &vrid, NULL)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid vr ID");
-    } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "vr ID %u", vrid);
-    }
+    return snprintf(str, max_len, "[sx_router_id:%u]", mlnx_oid.id.u32);
 }
+const mlnx_obj_type_attrs_info_t mlnx_router_obj_type_info =
+{ router_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY(), virtual_router_info_print};
 
 sai_status_t mlnx_virtual_router_availability_get(_In_ sai_object_id_t        switch_id,
                                                   _In_ uint32_t               attr_count,
@@ -118,12 +114,8 @@ sai_status_t mlnx_virtual_router_availability_get(_In_ sai_object_id_t        sw
 static sai_status_t mlnx_set_virtual_router_attribute(_In_ sai_object_id_t vr_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = vr_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    router_key_to_str(vr_id, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, router_vendor_attribs, attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, attr);
 }
 
 /*
@@ -144,17 +136,8 @@ static sai_status_t mlnx_get_virtual_router_attribute(_In_ sai_object_id_t     v
                                                       _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = vr_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    router_key_to_str(vr_id, key_str);
-    return sai_get_attributes(&key,
-                              key_str,
-                              SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
-                              router_vendor_attribs,
-                              attr_count,
-                              attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, attr_count, attr_list);
 }
 
 /* Admin V4, V6 State [bool] */
@@ -261,26 +244,14 @@ static sai_status_t mlnx_create_virtual_router(_Out_ sai_object_id_t      *vr_id
     sx_router_id_t               vrid;
     const sai_attribute_value_t *adminv4, *adminv6;
     uint32_t                     adminv4_index, adminv6_index;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    char                         key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
 
-    if (NULL == vr_id) {
-        SX_LOG_ERR("NULL vr_id param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, router_vendor_attribs,
-                                    SAI_COMMON_API_CREATE))) {
-        SX_LOG_ERR("Failed attribs check\n");
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, vr_id);
+    if (SAI_ERR(status)) {
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create router, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_VIRTUAL_ROUTER);
 
     memset(&router_attr, 0, sizeof(router_attr));
 
@@ -313,8 +284,8 @@ static sai_status_t mlnx_create_virtual_router(_Out_ sai_object_id_t      *vr_id
     if (SAI_STATUS_SUCCESS != (status = mlnx_create_object(SAI_OBJECT_TYPE_VIRTUAL_ROUTER, vrid, NULL, vr_id))) {
         return status;
     }
-    router_key_to_str(*vr_id, key_str);
-    SX_LOG_NTC("Created router %s\n", key_str);
+
+    MLNX_LOG_OID_CREATED(*vr_id);
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -336,12 +307,10 @@ static sai_status_t mlnx_remove_virtual_router(_In_ sai_object_id_t vr_id)
     sx_status_t    status;
     sx_router_id_t vrid;
     uint32_t       data;
-    char           key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
 
-    router_key_to_str(vr_id, key_str);
-    SX_LOG_NTC("Remove router %s\n", key_str);
+    MLNX_LOG_OID_REMOVE(vr_id);
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(vr_id, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, &data, NULL))) {
         return status;

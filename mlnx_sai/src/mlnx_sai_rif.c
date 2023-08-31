@@ -24,30 +24,19 @@
 #undef  __MODULE__
 #define __MODULE__ SAI_RIF
 
-static sai_status_t check_attrs_port_type(_In_ const sai_object_key_t *key,
-                                          _In_ uint32_t                count,
-                                          _In_ const sai_attribute_t  *attrs)
-{
-    uint32_t ii;
+/* Length of MAC address in bits */
+#define MAC_ADDRESS_LEN_BITS (6 * 8)
 
-    sai_db_read_lock();
-    for (ii = 0; ii < count; ii++) {
-        const sai_attribute_t *attr = &attrs[ii];
-        attr_port_type_check_t check = ATTR_PORT_IS_LAG_ENABLED;
+/* Initial value used to create MAC prefix bit mask */
+#define MAC_PREFIX_INITIAL_MASK UINT64_C(0xffffffffffffffff)
 
-        if (attr->id == SAI_ROUTER_INTERFACE_ATTR_PORT_ID) {
-            sai_status_t status;
+/* Clear N least significant bits */
+#define CLEAR_LSB(var, bits) ((var >> bits) << bits)
 
-            status = check_port_type_attr(&attr->value.oid, 1, check, attr->id, ii);
+/* Get MAC address prefix value of N first bits */
+#define MAC_PREFIX_GET(mac, size) (CLEAR_LSB(MAC_PREFIX_INITIAL_MASK, (MAC_ADDRESS_LEN_BITS - size)) & mac)
 
-            sai_db_unlock();
-            return status;
-        }
-    }
-    sai_db_unlock();
-
-    return SAI_STATUS_SUCCESS;
-}
+bool g_additional_mac_enabled;
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
@@ -58,9 +47,6 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
 static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
                                         void                             *arg);
-static sai_status_t mlnx_rif_loopback_action_sai_to_sx(_In_ const sai_attribute_value_t *loopback_action,
-                                                       _In_ uint32_t                     attr_index,
-                                                       _Out_ sx_interface_attributes_t  *intf_attribs);
 static const sai_vendor_attribute_entry_t rif_vendor_attribs[] = {
     { SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID,
       { true, false, false, true },
@@ -170,26 +156,18 @@ static const sai_stat_capability_t        rif_stats_capabilities[] = {
     { SAI_ROUTER_INTERFACE_STAT_OUT_ERROR_OCTETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_ROUTER_INTERFACE_STAT_OUT_ERROR_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
 };
-const mlnx_obj_type_attrs_info_t          mlnx_rif_obj_type_info =
-{ rif_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(rif_enum_info), OBJ_STAT_CAP_INFO(rif_stats_capabilities)};
-static void rif_key_to_str(_In_ sai_object_id_t rif_id, _Out_ char *key_str)
+static size_t rif_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
 {
-    const mlnx_object_id_t *mlnx_oid = (const mlnx_object_id_t*)&rif_id;
-    bool                    is_bridge_rif;
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
 
-    is_bridge_rif = (mlnx_oid->field.sub_type == MLNX_RIF_TYPE_BRIDGE);
-
-    if (mlnx_oid->object_type != SAI_OBJECT_TYPE_ROUTER_INTERFACE) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "invalid rif");
-    } else {
-        if (is_bridge_rif) {
-            snprintf(key_str, MAX_KEY_STR_LEN, "bridge rif idx %u", mlnx_oid->id.bridge_rif_idx);
-        } else {
-            snprintf(key_str, MAX_KEY_STR_LEN, "rif idx %u", mlnx_oid->id.rif_db_idx.idx);
-        }
+    if (mlnx_oid.field.sub_type == MLNX_RIF_TYPE_BRIDGE) {
+        return snprintf(str, max_len, "[Type:BRIDGE, ID:%u]", mlnx_oid.id.bridge_rif_idx);
     }
-}
 
+    return snprintf(str, max_len, "[Type:DEFAULT, ID:%u]", mlnx_oid.id.rif_db_idx.idx);
+}
+const mlnx_obj_type_attrs_info_t mlnx_rif_obj_type_info =
+{ rif_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(rif_enum_info), OBJ_STAT_CAP_INFO(rif_stats_capabilities), rif_info_print};
 
 sai_status_t mlnx_rif_availability_get(_In_ sai_object_id_t        switch_id,
                                        _In_ uint32_t               attr_count,
@@ -261,6 +239,7 @@ static sai_status_t mlnx_rif_db_free(_In_ mlnx_shm_rm_array_idx_t idx)
     }
 
     memset(&rif_db_data->sx_data, 0, sizeof(rif_db_data->sx_data));
+    memset(&rif_db_data->mac_data, 0, sizeof(rif_db_data->mac_data));
 
     return mlnx_shm_rm_array_free(idx);
 }
@@ -326,6 +305,51 @@ sai_status_t mlnx_rif_sx_to_sai_oid(_In_ sx_router_interface_t sx_rif_id, _Out_ 
     return SAI_STATUS_FAILURE;
 }
 
+sai_status_t mlnx_rif_oid_to_mac_data(_In_ sai_object_id_t rif_oid, _Out_ mlnx_rif_mac_data_t       **rif_mac_data)
+{
+    sai_status_t       status;
+    mlnx_object_id_t   mlnx_rif_obj = {0};
+    mlnx_bridge_rif_t *br_rif = NULL;
+    mlnx_rif_db_t     *rif_db = NULL;
+
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_ROUTER_INTERFACE, rif_oid, &mlnx_rif_obj);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (mlnx_rif_obj.field.sub_type > MLNX_RIF_TYPE_BRIDGE) {
+        SX_LOG_ERR("Invalid rif sub type - %d\n", mlnx_rif_obj.field.sub_type);
+        return SAI_STATUS_INVALID_OBJECT_ID;
+    }
+
+    if (mlnx_rif_obj.field.sub_type == MLNX_RIF_TYPE_DEFAULT) {
+        status = mlnx_rif_db_idx_to_data(mlnx_rif_obj.id.rif_db_idx, &rif_db);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        if (!rif_db->mlnx_array.is_used) {
+            SX_LOG_ERR("RIF entry at index %u is removed or not created yet.\n", mlnx_rif_obj.id.rif_db_idx);
+            return SAI_STATUS_FAILURE;
+        }
+
+        if (rif_mac_data) {
+            *rif_mac_data = &rif_db->mac_data;
+        }
+    } else { /* SAI_ROUTER_INTERFACE_TYPE_BRIDGE */
+        status = mlnx_bridge_rif_by_idx(mlnx_rif_obj.id.bridge_rif_idx, &br_rif);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to lookup mlnx bridge rif entry by idx %u\n", mlnx_rif_obj.id.bridge_rif_idx);
+            return status;
+        }
+        if (rif_mac_data) {
+            *rif_mac_data = &br_rif->mac_data;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_rif_oid_data_fetch(_In_ sai_object_id_t             rif_oid,
                                             _Out_ mlnx_rif_type_t           *rif_type,
                                             _Inout_ uint32_t                *bridge_rif_idx,
@@ -358,6 +382,11 @@ static sai_status_t mlnx_rif_oid_data_fetch(_In_ sai_object_id_t             rif
         status = mlnx_rif_db_idx_to_data(mlnx_rif_obj.id.rif_db_idx, &rif_db);
         if (SAI_ERR(status)) {
             return status;
+        }
+
+        if (!rif_db->mlnx_array.is_used) {
+            SX_LOG_ERR("RIF entry at index %u is removed or not created yet.\n", mlnx_rif_obj.id.rif_db_idx);
+            return SAI_STATUS_FAILURE;
         }
 
         created = true;
@@ -394,7 +423,7 @@ static sai_status_t mlnx_rif_oid_data_fetch(_In_ sai_object_id_t             rif
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_rif_oid_counter_get(_In_ sai_object_id_t rif_oid, _Out_ sx_router_counter_id_t *sx_counter)
+sai_status_t mlnx_rif_oid_counter_get(_In_ sai_object_id_t rif_oid, _Out_ sx_router_counter_id_t *sx_counter)
 {
     sai_status_t        status;
     mlnx_rif_sx_data_t *sx_data;
@@ -459,6 +488,46 @@ sai_status_t mlnx_rif_oid_to_sdk_rif_id(_In_ sai_object_id_t rif_oid, _Out_ sx_r
     return SAI_STATUS_SUCCESS;
 }
 
+bool mlnx_rif_is_additional_mac_supported(void)
+{
+    return (g_additional_mac_enabled && mlnx_chip_is_spc());
+}
+
+static bool mlnx_rif_check_additional_mac(_In_ const void *mac)
+{
+    sx_mac_addr_t input_mac;
+    uint64_t      base_mac_addr_64 = 0;
+    uint64_t      base_mac_prefix = 0;
+    uint64_t      in_mac_addr_64 = 0;
+    uint64_t      in_mac_prefix = 0;
+
+    SX_LOG_ENTER();
+    assert(NULL != mac);
+
+    if (0 == g_sai_db_ptr->rif_mac_range_ref_counter) {
+        return false;
+    }
+
+    memcpy(&input_mac, mac, sizeof(input_mac));
+    base_mac_addr_64 = SX_MAC_TO_U64(g_sai_db_ptr->rif_mac_range_addr);
+    base_mac_prefix = MAC_PREFIX_GET(base_mac_addr_64, g_resource_limits.router_mac_prefix_size);
+    in_mac_addr_64 = SX_MAC_TO_U64(input_mac);
+    in_mac_prefix = MAC_PREFIX_GET(in_mac_addr_64, g_resource_limits.router_mac_prefix_size);
+
+    return (in_mac_prefix != base_mac_prefix);
+}
+
+static sai_status_t mlnx_rif_get_mac_in_profile_range(sx_mac_addr_t *mac)
+{
+    assert(NULL != mac);
+    if (0 != g_sai_db_ptr->rif_mac_range_ref_counter) {
+        memcpy(mac, &g_sai_db_ptr->rif_mac_range_addr, sizeof(*mac));
+    } else {
+        return mlnx_switch_get_mac(mac);
+    }
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_rif_sx_init(_In_ sx_router_id_t                     vrf_id,
                               _In_ const sx_router_interface_param_t *intf_params,
                               _In_ const sx_interface_attributes_t   *intf_attribs,
@@ -466,44 +535,112 @@ sai_status_t mlnx_rif_sx_init(_In_ sx_router_id_t                     vrf_id,
                               _Out_ sx_router_counter_id_t           *sx_counter)
 {
     sai_status_t status;
-    sx_status_t  sx_status;
+    sx_status_t  sx_status, out_status;
+    bool         rif_created = false;
+    bool         counter_created = false;
+    bool         binded = false;
+    bool         rif_mac_range_ref_updated = false;
 
     assert(sx_rif_id);
     assert(sx_counter);
+
+    if (mlnx_rif_is_additional_mac_supported() && (intf_params->type != SX_L2_INTERFACE_TYPE_LOOPBACK)) {
+        if (0 == g_sai_db_ptr->rif_mac_range_ref_counter) {
+            memcpy(&g_sai_db_ptr->rif_mac_range_addr, &intf_attribs->mac_addr,
+                   sizeof(g_sai_db_ptr->rif_mac_range_addr));
+        } else {
+            if (mlnx_rif_check_additional_mac(&intf_attribs->mac_addr)) {
+                SX_LOG_ERR("Should not use additional mac in creating rif.\n");
+                return SAI_STATUS_FAILURE;
+            }
+        }
+        g_sai_db_ptr->rif_mac_range_ref_counter++;
+        rif_mac_range_ref_updated = true;
+    }
 
     sx_status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_ADD, vrf_id, intf_params, intf_attribs, sx_rif_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create router interface - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
+    rif_created = true;
 
     sx_status = sx_api_router_counter_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_counter);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create router counter - %s\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+        goto out;
     }
+    counter_created = true;
 
     sx_status = sx_api_router_interface_counter_bind_set(gh_sdk, SX_ACCESS_CMD_BIND, *sx_counter, *sx_rif_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to bind router counter %d to rif %d - %s\n", *sx_counter, *sx_rif_id,
                    SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+        goto out;
     }
+    binded = true;
 
     status = mlnx_bmtor_rif_event_add(*sx_rif_id);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
     SX_LOG_DBG("Created sx rif %d and counter %d\n", *sx_rif_id, *sx_counter);
 
     return SAI_STATUS_SUCCESS;
+out:
+
+    if (binded) {
+        sx_status = sx_api_router_interface_counter_bind_set(gh_sdk, SX_ACCESS_CMD_UNBIND, *sx_counter, *sx_rif_id);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to unbind router counter %d to rif %d - %s\n", *sx_counter, *sx_rif_id,
+                       SX_STATUS_MSG(sx_status));
+        }
+    }
+
+    if (counter_created) {
+        out_status = sx_api_router_counter_set(gh_sdk, SX_ACCESS_CMD_DESTROY, sx_counter);
+        if (SX_ERR(out_status)) {
+            SX_LOG_ERR("Failed to destroy router counter - %s\n", SX_STATUS_MSG(out_status));
+        }
+    }
+
+    if (rif_created) {
+        out_status = sx_api_router_interface_set(gh_sdk,
+                                                 SX_ACCESS_CMD_DELETE,
+                                                 vrf_id,
+                                                 intf_params,
+                                                 intf_attribs,
+                                                 sx_rif_id);
+        if (SX_ERR(out_status)) {
+            SX_LOG_ERR("Failed to remove router interface - %s.\n", SX_STATUS_MSG(out_status));
+        }
+    }
+
+    if (mlnx_rif_is_additional_mac_supported() && rif_mac_range_ref_updated) {
+        assert(0 != g_sai_db_ptr->rif_mac_range_ref_counter);
+        g_sai_db_ptr->rif_mac_range_ref_counter--;
+        if (0 == g_sai_db_ptr->rif_mac_range_ref_counter) {
+            memset(&g_sai_db_ptr->rif_mac_range_addr, 0, sizeof(g_sai_db_ptr->rif_mac_range_addr));
+        }
+    }
+
+    return sdk_to_sai(sx_status);
 }
 
 sai_status_t mlnx_rif_sx_deinit(_In_ mlnx_rif_sx_data_t *sx_data)
 {
-    sai_status_t status;
-    sx_status_t  sx_status;
+    sai_status_t                status;
+    sx_status_t                 sx_status;
+    sx_router_interface_param_t intf_params;
+    sx_interface_attributes_t   intf_attribs;
+    sx_router_id_t              vrid;
+
+    sx_status = sx_api_router_interface_get(gh_sdk, sx_data->rif_id, &vrid, &intf_params, &intf_attribs);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get router interface - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
 
     sx_status = sx_api_router_interface_counter_bind_set(gh_sdk,
                                                          SX_ACCESS_CMD_UNBIND,
@@ -531,6 +668,14 @@ sai_status_t mlnx_rif_sx_deinit(_In_ mlnx_rif_sx_data_t *sx_data)
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to delete router interface - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
+    }
+
+    if (mlnx_rif_is_additional_mac_supported() && (intf_params.type != SX_L2_INTERFACE_TYPE_LOOPBACK)) {
+        assert(0 != g_sai_db_ptr->rif_mac_range_ref_counter);
+        g_sai_db_ptr->rif_mac_range_ref_counter--;
+        if (0 == g_sai_db_ptr->rif_mac_range_ref_counter) {
+            memset(&g_sai_db_ptr->rif_mac_range_addr, 0, sizeof(g_sai_db_ptr->rif_mac_range_addr));
+        }
     }
 
     SX_LOG_DBG("Removed sx rif %d and counter %d\n", sx_data->rif_id, sx_data->counter);
@@ -575,32 +720,22 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
                                  mcastv4_index, mcastv6_index;
     sx_router_interface_t        sdk_rif_id;
     sx_router_interface_state_t  rif_state;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    char                         key_str[MAX_KEY_STR_LEN];
     mlnx_port_config_t          *port_cfg;
     const sai_attribute_value_t *attr_ing_acl = NULL;
     const sai_attribute_value_t *attr_egr_acl = NULL;
     acl_index_t                  ing_acl_index = ACL_INDEX_INVALID, egr_acl_index = ACL_INDEX_INVALID;
     mlnx_object_id_t             vlan_obj;
+    bool                         has_additional_mac = false;
+    sx_mac_addr_t                additional_mac;
+    bool                         is_ar_rif = false;
 
     SX_LOG_ENTER();
 
-    if (NULL == rif_id) {
-        SX_LOG_ERR("NULL rif id param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTER_INTERFACE, rif_vendor_attribs,
-                                    SAI_COMMON_API_CREATE))) {
-        SX_LOG_ERR("Failed attribs check\n");
-        SX_LOG_EXIT();
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTER_INTERFACE, rif_id);
+    if (SAI_ERR(status)) {
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTER_INTERFACE, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create rif, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTER_INTERFACE);
 
     memset(&intf_params, 0, sizeof(intf_params));
     memset(&intf_attribs, 0, sizeof(intf_attribs));
@@ -670,9 +805,31 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + port_index;
         }
 
-        intf_params.type = SX_L2_INTERFACE_TYPE_PORT_VLAN;
-        intf_params.ifc.port_vlan.port = sx_port_id;
-        intf_params.ifc.port_vlan.vlan = 0;
+        sai_db_read_lock();
+        is_ar_rif = mlnx_find_ar_port_by_id(sx_port_id, NULL, NULL);
+        sai_db_unlock();
+
+        if (is_ar_rif) {
+            SX_LOG_NTC("Creating rif based on adaptive routing enabled port log id %x.\n", sx_port_id);
+            status = mlnx_bridge_sx_vport_create(sx_port_id, SX_VLAN_DEFAULT_VID, SX_UNTAGGED_MEMBER, &sx_vport_id);
+            if (SAI_ERR(status)) {
+                SX_LOG_EXIT();
+                return status;
+            }
+            sx_status = sx_api_port_state_set(gh_sdk, sx_vport_id, SX_PORT_ADMIN_STATUS_UP);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to set port admin state - %s.\n", SX_STATUS_MSG(sx_status));
+                SX_LOG_EXIT();
+                return sdk_to_sai(sx_status);
+            }
+
+            intf_params.type = SX_L2_INTERFACE_TYPE_ADAPTIVE_ROUTING;
+            intf_params.ifc.adaptive_routing.vport = sx_vport_id;
+        } else {
+            intf_params.type = SX_L2_INTERFACE_TYPE_PORT_VLAN;
+            intf_params.ifc.port_vlan.port = sx_port_id;
+            intf_params.ifc.port_vlan.vlan = 0;
+        }
     } else if (SAI_ROUTER_INTERFACE_TYPE_LOOPBACK == type->s32) {
         if (port) {
             SX_LOG_ERR("Invalid attribute port id for loopback rif on create\n");
@@ -748,12 +905,36 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             status = SAI_STATUS_INVALID_ATTRIBUTE_0 + mac_index;
             goto out;
         }
-        memcpy(&intf_attribs.mac_addr, mac->mac, sizeof(intf_attribs.mac_addr));
+
+        if (mlnx_rif_is_additional_mac_supported()) {
+            has_additional_mac = mlnx_rif_check_additional_mac(&mac->mac);
+            if (has_additional_mac) {
+                /* Get default mac from profile range */
+                SX_LOG_DBG("Create with additional MAC\n");
+                status = mlnx_rif_get_mac_in_profile_range(&intf_attribs.mac_addr);
+                if (SAI_ERR(status)) {
+                    goto out;
+                }
+                memcpy(&additional_mac, mac->mac, sizeof(additional_mac));
+            } else {
+                memcpy(&intf_attribs.mac_addr, mac->mac, sizeof(intf_attribs.mac_addr));
+            }
+        } else {
+            memcpy(&intf_attribs.mac_addr, mac->mac, sizeof(intf_attribs.mac_addr));
+        }
     } else {
-        /* Get default mac from switch object */
-        status = mlnx_switch_get_mac(&intf_attribs.mac_addr);
-        if (SAI_ERR(status)) {
-            goto out;
+        if (mlnx_rif_is_additional_mac_supported()) {
+            /* get mac from the profile range */
+            status = mlnx_rif_get_mac_in_profile_range(&intf_attribs.mac_addr);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+        } else {
+            /* Get default mac from switch object */
+            status = mlnx_switch_get_mac(&intf_attribs.mac_addr);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
         }
     }
 
@@ -824,6 +1005,32 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         if (SAI_ERR(status)) {
             goto out;
         }
+        if (SAI_ROUTER_INTERFACE_TYPE_PORT == type->s32) {
+            status = mlnx_port_by_log_id(sx_port_id, &port_cfg);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+            status = sx_api_vlan_port_pvid_get(gh_sdk, port_cfg->logical, &port_cfg->pvid_create_rif);
+            if (SX_ERR(status)) {
+                SX_LOG_ERR("Failed to get %x pvid - %s.\n", port_cfg->logical, SX_STATUS_MSG(status));
+                status = sdk_to_sai(status);
+                goto out;
+            }
+            SX_LOG_INF("Record the pvid %d of port 0x%x\n", port_cfg->pvid_create_rif, sx_port_id);
+        }
+
+        if (mlnx_rif_is_additional_mac_supported() && has_additional_mac) {
+            sx_status = sx_api_router_interface_mac_set(gh_sdk, SX_ACCESS_CMD_ADD, sdk_rif_id, &additional_mac, 1);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to set additional MAC - %s.\n", SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(status);
+                goto out;
+            }
+
+            rif_db_data->mac_data.additional_mac_is_used = has_additional_mac;
+            memcpy(&rif_db_data->mac_data.additional_mac_addr, &additional_mac,
+                   sizeof(rif_db_data->mac_data.additional_mac_addr));
+        }
 
         rif_db_data->sx_data.rif_id = sdk_rif_id;
         rif_db_data->sx_data.counter = sx_counter;
@@ -881,6 +1088,12 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         memcpy(&br_rif->intf_attribs, &intf_attribs, sizeof(br_rif->intf_attribs));
         memcpy(&br_rif->intf_params, &intf_params, sizeof(br_rif->intf_params));
         memcpy(&br_rif->intf_state, &rif_state, sizeof(br_rif->intf_state));
+
+        br_rif->mac_data.additional_mac_is_used = has_additional_mac;
+        if (has_additional_mac) {
+            memcpy(&br_rif->mac_data.additional_mac_addr, &additional_mac,
+                   sizeof(br_rif->mac_data.additional_mac_addr));
+        }
     }
 
     status = mlnx_rif_oid_create(rif_type, br_rif, db_idx, rif_id);
@@ -916,8 +1129,7 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         port_cfg->rifs++;
     }
 
-    rif_key_to_str(*rif_id, key_str);
-    SX_LOG_NTC("Created rif %s\n", key_str);
+    MLNX_LOG_OID_CREATED(*rif_id);
 
 out:
     if (SAI_ERR(status)) {
@@ -946,20 +1158,22 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
     sx_interface_attributes_t   intf_attribs;
     sx_port_log_id_t            sx_port_id, sx_vport_id;
     sx_vlan_id_t                sx_vlan_id;
-    sx_status_t                 status;
+    sx_status_t                 sx_status;
+    sai_status_t                status;
     mlnx_rif_type_t             rif_type;
     uint32_t                    bridge_rif_idx;
     mlnx_shm_rm_array_idx_t     rif_db_idx = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
     mlnx_rif_sx_data_t         *sx_data;
     mlnx_bridge_rif_t          *br_rif;
-    char                        key_str[MAX_KEY_STR_LEN];
     mlnx_port_config_t         *port_cfg;
     bool                        is_port_or_sub_port = false, is_created;
+    mlnx_bridge_port_t         *bport;
+    sx_vid_t                    pvid;
+    sx_vlan_ports_t             port_list;
 
     SX_LOG_ENTER();
 
-    rif_key_to_str(rif_id, key_str);
-    SX_LOG_NTC("Remove rif %s\n", key_str);
+    MLNX_LOG_OID_REMOVE(rif_id);
 
     sai_db_write_lock();
 
@@ -974,12 +1188,11 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
             goto out;
         }
 
-        if (SX_STATUS_SUCCESS !=
-            (status =
-                 sx_api_router_interface_get(gh_sdk, sx_data->rif_id, &sx_data->vrf_id, &intf_params,
-                                             &intf_attribs))) {
-            SX_LOG_ERR("Failed to get router interface - %s.\n", SX_STATUS_MSG(status));
-            status = sdk_to_sai(status);
+        sx_status = sx_api_router_interface_get(gh_sdk, sx_data->rif_id, &sx_data->vrf_id, &intf_params,
+                                                &intf_attribs);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to get router interface - %s.\n", SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
             goto out;
         }
 
@@ -996,16 +1209,58 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
         if (SX_L2_INTERFACE_TYPE_PORT_VLAN == intf_params.type) {
             is_port_or_sub_port = true;
             sx_port_id = intf_params.ifc.port_vlan.port;
+            status = mlnx_port_by_log_id(sx_port_id, &port_cfg);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+
+            sx_status = sx_api_vlan_port_pvid_get(gh_sdk, port_cfg->logical, &pvid);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to get %x pvid - %s.\n", port_cfg->logical, SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(sx_status);
+                goto out;
+            }
+            SX_LOG_INF("Port/lag 0x%x pvid_create_rif %d, current pvid %d\n",
+                       port_cfg->logical, port_cfg->pvid_create_rif, pvid);
+            /* handle case of pvid change on router port
+             * sdk tries to remove router port from current pvid
+             * if pvid of router port has changed, need to remove router port
+             * from the original pvid the time it was created, as sdk added it to
+             * that vlan on creation
+             */
+            if (port_cfg->pvid_create_rif != pvid) {
+                bport = 0;
+                status = mlnx_bridge_1q_port_by_log(port_cfg->logical, &bport);
+                if ((status != SAI_STATUS_SUCCESS) || !mlnx_vlan_port_is_set(port_cfg->pvid_create_rif, bport)) {
+                    memset(&port_list, 0, sizeof(port_list));
+                    port_list.log_port = port_cfg->logical;
+                    sx_status = sx_api_vlan_ports_set(gh_sdk,
+                                                      SX_ACCESS_CMD_DELETE,
+                                                      DEFAULT_ETH_SWID,
+                                                      port_cfg->pvid_create_rif,
+                                                      &port_list, 1);
+                    if (SX_ERR(sx_status)) {
+                        SX_LOG_ERR("Failed to delete port/lag 0x%x from vlan %d, current pvid %d - %s\n",
+                                   port_cfg->logical, port_cfg->pvid_create_rif, pvid, SX_STATUS_MSG(sx_status));
+                    }
+                } else {
+                    SX_LOG_INF("Port/lag 0x%x was in vlan %d before creating rif.\n",
+                               port_cfg->logical, port_cfg->pvid_create_rif);
+                }
+            }
+            port_cfg->pvid_create_rif = 0;
         }
 
         if (SX_L2_INTERFACE_TYPE_VPORT == intf_params.type) {
             is_port_or_sub_port = true;
             sx_vport_id = intf_params.ifc.vport.vport;
 
-            status = sx_api_port_vport_base_get(gh_sdk, sx_vport_id, &sx_vlan_id, &sx_port_id);
-            if (SX_ERR(status)) {
-                SX_LOG_ERR("Failed to get base port and vlan for vport %x - %s\n", sx_vport_id, SX_STATUS_MSG(status));
-                status = sdk_to_sai(status);
+            sx_status = sx_api_port_vport_base_get(gh_sdk, sx_vport_id, &sx_vlan_id, &sx_port_id);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to get base port and vlan for vport %x - %s\n",
+                           sx_vport_id,
+                           SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(sx_status);
                 goto out;
             }
 
@@ -1015,12 +1270,32 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
             }
         }
 
+        if (SX_L2_INTERFACE_TYPE_ADAPTIVE_ROUTING == intf_params.type) {
+            is_port_or_sub_port = true;
+            sx_vport_id = intf_params.ifc.adaptive_routing.vport;
+
+            sx_status = sx_api_port_vport_base_get(gh_sdk, sx_vport_id, &sx_vlan_id, &sx_port_id);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to get base port and vlan for vport %x - %s\n",
+                           sx_vport_id,
+                           SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(sx_status);
+                goto out;
+            }
+
+            status = mlnx_bridge_sx_vport_delete(sx_port_id, sx_vlan_id, sx_vport_id);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to delete vport 0x%x\n", sx_vport_id);
+                goto out;
+            }
+        }
+
         if (is_port_or_sub_port) {
-            status = sx_api_fdb_port_learn_mode_set(gh_sdk, sx_port_id, SX_FDB_LEARN_MODE_AUTO_LEARN);
-            if (SX_ERR(status)) {
+            sx_status = sx_api_fdb_port_learn_mode_set(gh_sdk, sx_port_id, SX_FDB_LEARN_MODE_AUTO_LEARN);
+            if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to set port learning mode auto for removed router port - %s.\n",
-                           SX_STATUS_MSG(status));
-                status = sdk_to_sai(status);
+                           SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(sx_status);
                 goto out;
             }
 
@@ -1071,18 +1346,8 @@ out:
 static sai_status_t mlnx_set_router_interface_attribute(_In_ sai_object_id_t rif_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = rif_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    sai_status_t           status;
 
-    SX_LOG_ENTER();
-
-    status = check_attrs_port_type(&key, 1, attr);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    rif_key_to_str(rif_id, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_ROUTER_INTERFACE, rif_vendor_attribs, attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_ROUTER_INTERFACE, attr);
 }
 
 /*
@@ -1103,22 +1368,13 @@ static sai_status_t mlnx_get_router_interface_attribute(_In_ sai_object_id_t    
                                                         _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = rif_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    rif_key_to_str(rif_id, key_str);
-    return sai_get_attributes(&key,
-                              key_str,
-                              SAI_OBJECT_TYPE_ROUTER_INTERFACE,
-                              rif_vendor_attribs,
-                              attr_count,
-                              attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_ROUTER_INTERFACE, attr_count, attr_list);
 }
 
-static sai_status_t mlnx_rif_loopback_action_sai_to_sx(_In_ const sai_attribute_value_t *loopback_action,
-                                                       _In_ uint32_t                     attr_index,
-                                                       _Out_ sx_interface_attributes_t  *intf_attribs)
+sai_status_t mlnx_rif_loopback_action_sai_to_sx(_In_ const sai_attribute_value_t *loopback_action,
+                                                _In_ uint32_t                     attr_index,
+                                                _Out_ sx_interface_attributes_t  *intf_attribs)
 {
     assert(loopback_action);
     assert(intf_attribs);
@@ -1138,7 +1394,8 @@ static sai_status_t mlnx_rif_attr_to_sdk(sai_router_interface_attr_t  attr,
                                          const sai_attribute_value_t *value,
                                          sx_interface_attributes_t   *intf_attribs,
                                          sx_router_interface_param_t *intf_params,
-                                         sx_router_interface_state_t *rif_state)
+                                         sx_router_interface_state_t *rif_state,
+                                         bool                        *has_additional_mac)
 {
     sai_status_t status;
 
@@ -1154,7 +1411,24 @@ static sai_status_t mlnx_rif_attr_to_sdk(sai_router_interface_attr_t  attr,
             SX_LOG_EXIT();
             return SAI_STATUS_INVALID_PARAMETER;
         }
-        memcpy(&intf_attribs->mac_addr, value->mac, sizeof(intf_attribs->mac_addr));
+        if (mlnx_rif_is_additional_mac_supported()) {
+            assert(NULL != has_additional_mac);
+            *has_additional_mac = mlnx_rif_check_additional_mac(&value->mac);
+            if (*has_additional_mac) {
+                /* Get default mac from profile range */
+                SX_LOG_DBG("Set additional MAC\n");
+                status = mlnx_rif_get_mac_in_profile_range(&intf_attribs->mac_addr);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to get mac from profile range.\n");
+                    SX_LOG_EXIT();
+                    return status;
+                }
+            } else {
+                memcpy(&intf_attribs->mac_addr, value->mac, sizeof(intf_attribs->mac_addr));
+            }
+        } else {
+            memcpy(&intf_attribs->mac_addr, value->mac, sizeof(intf_attribs->mac_addr));
+        }
         break;
 
     case SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE:
@@ -1187,14 +1461,14 @@ static sai_status_t mlnx_rif_attr_to_sdk(sai_router_interface_attr_t  attr,
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_rif_sx_attrs_get(_In_ sai_object_id_t                rif_oid,
-                                          _In_ bool                           is_admin_state,
-                                          _Out_ mlnx_rif_type_t              *rif_type,
-                                          _Out_ bool                         *is_created,
-                                          _Out_ mlnx_rif_sx_data_t          **sx_data,
-                                          _Out_ sx_router_interface_state_t **rif_state,
-                                          _Out_ sx_router_interface_param_t **intf_params,
-                                          _Out_ sx_interface_attributes_t   **intf_attribs)
+sai_status_t mlnx_rif_sx_attrs_get(_In_ sai_object_id_t                rif_oid,
+                                   _In_ bool                           is_admin_state,
+                                   _Out_ mlnx_rif_type_t              *rif_type,
+                                   _Out_ bool                         *is_created,
+                                   _Out_ mlnx_rif_sx_data_t          **sx_data,
+                                   _Out_ sx_router_interface_state_t **rif_state,
+                                   _Out_ sx_router_interface_param_t **intf_params,
+                                   _Out_ sx_interface_attributes_t   **intf_attribs)
 {
     sx_status_t             sx_status;
     sai_status_t            status;
@@ -1246,6 +1520,7 @@ static sai_status_t mlnx_rif_sx_attrs_get(_In_ sai_object_id_t                ri
 /* Admin State V4, V6 [bool] */
 /* Multicast V4 V6 enable [bool]*/
 /* Multicast enabling is currently not supported */
+#define RIF_SEC_MAC_MAX 100
 static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
                                         void                             *arg)
@@ -1262,6 +1537,11 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
     mlnx_rif_type_t             rif_type;
     bool                        is_created;
     sai_router_interface_attr_t attr = (sai_router_interface_attr_t)arg;
+    bool                        has_additional_mac;
+    sx_mac_addr_t               additional_mac;
+    sx_mac_addr_t               mac_addr_arr[RIF_SEC_MAC_MAX];
+    uint32_t                    mac_addr_num = RIF_SEC_MAC_MAX;
+    mlnx_rif_mac_data_t        *rif_mac_data;
 
     SX_LOG_ENTER();
 
@@ -1285,7 +1565,7 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
         goto out;
     }
 
-    status = mlnx_rif_attr_to_sdk(attr, value, intf_attribs_ptr, intf_params_ptr, rif_state_ptr);
+    status = mlnx_rif_attr_to_sdk(attr, value, intf_attribs_ptr, intf_params_ptr, rif_state_ptr, &has_additional_mac);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to convert rif params from SAI attr\n");
         goto out;
@@ -1302,16 +1582,54 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
             goto out;
         }
     } else {
-        sx_status = sx_api_router_interface_set(gh_sdk,
-                                                SX_ACCESS_CMD_EDIT,
-                                                vrid,
-                                                intf_params_ptr,
-                                                intf_attribs_ptr,
-                                                &rif_id);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to set router interface - %s.\n", SX_STATUS_MSG(sx_status));
-            status = sdk_to_sai(sx_status);
-            goto out;
+        if (mlnx_rif_is_additional_mac_supported() && has_additional_mac) {
+            status = mlnx_rif_oid_to_mac_data(key->key.object_id, &rif_mac_data);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to get mac data.\n");
+                goto out;
+            }
+            rif_mac_data->additional_mac_is_used = has_additional_mac;
+
+            sx_status = sx_api_router_interface_mac_get(gh_sdk, rif_id, mac_addr_arr, &mac_addr_num);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to get additional MAC - %s.\n", SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(sx_status);
+                goto out;
+            }
+            if (mac_addr_num > 1) {
+                SX_LOG_ERR("Got more than one additional MAC.\n");
+                status = SAI_STATUS_FAILURE;
+                goto out;
+            }
+            if (1 == mac_addr_num) {
+                sx_status = sx_api_router_interface_mac_set(gh_sdk, SX_ACCESS_CMD_DELETE, rif_id, &mac_addr_arr[0], 1);
+                if (SX_ERR(sx_status)) {
+                    SX_LOG_ERR("Failed to delete old additional MAC - %s.\n", SX_STATUS_MSG(sx_status));
+                    status = sdk_to_sai(sx_status);
+                    goto out;
+                }
+                memset(&rif_mac_data->additional_mac_addr, 0, sizeof(rif_mac_data->additional_mac_addr));
+            }
+            memcpy(&additional_mac, value->mac, sizeof(additional_mac));
+            sx_status = sx_api_router_interface_mac_set(gh_sdk, SX_ACCESS_CMD_ADD, rif_id, &additional_mac, 1);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to set new additional MAC - %s.\n", SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(sx_status);
+                goto out;
+            }
+            memcpy(&rif_mac_data->additional_mac_addr, &additional_mac, sizeof(rif_mac_data->additional_mac_addr));
+        } else {
+            sx_status = sx_api_router_interface_set(gh_sdk,
+                                                    SX_ACCESS_CMD_EDIT,
+                                                    vrid,
+                                                    intf_params_ptr,
+                                                    intf_attribs_ptr,
+                                                    &rif_id);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to set router interface - %s.\n", SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(sx_status);
+                goto out;
+            }
         }
     }
 
@@ -1520,8 +1838,8 @@ static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t    
 
     SX_LOG_ENTER();
 
-    rif_key_to_str(router_interface_id, key_str);
-    SX_LOG_DBG("Get rif stats %s\n", key_str);
+    oid_to_str(router_interface_id, key_str);
+    SX_LOG_DBG("Get stats %s\n", key_str);
 
     if (NULL == counter_ids) {
         SX_LOG_ERR("NULL counter ids array param\n");
@@ -1660,14 +1978,12 @@ static sai_status_t mlnx_clear_router_interface_stats(_In_ sai_object_id_t      
     sx_router_counter_set_t sx_counter_set;
     sx_router_counter_id_t  sx_counter;
     uint32_t                ii;
-    char                    key_str[MAX_KEY_STR_LEN];
 
     memset(&sx_counter_set, 0, sizeof(sx_counter_set));
 
     SX_LOG_ENTER();
 
-    rif_key_to_str(router_interface_id, key_str);
-    SX_LOG_DBG("Clear rif stats %s\n", key_str);
+    MLNX_LOG_OID("Clear stats", router_interface_id);
 
     if (NULL == counter_ids) {
         SX_LOG_ERR("NULL counter ids array param\n");
@@ -1708,6 +2024,78 @@ sai_status_t mlnx_rif_log_set(sx_verbosity_level_t level)
     LOG_VAR_NAME(__MODULE__) = level;
 
     return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_debug_set_additional_mac_for_ptf(_In_ const char* value)
+{
+    sai_status_t sai_status = SAI_STATUS_SUCCESS;
+    uint32_t     rifs_exists;
+    sx_status_t  sx_status;
+
+    assert(NULL != value);
+
+    if (!mlnx_chip_is_spc()) {
+        SX_LOG_NTC("Additional mac is only supported by SPC1.\n");
+        return SAI_STATUS_NOT_SUPPORTED;
+    }
+
+    sai_db_write_lock();
+    sx_status = sx_api_router_interface_iter_get(gh_sdk, SX_ACCESS_CMD_GET, NULL, NULL, NULL, &rifs_exists);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get count of router interfaces - %s\n", SX_STATUS_MSG(sx_status));
+        sai_status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    if (0 != rifs_exists) {
+        SX_LOG_ERR("Additional mac can only be enable/disable in clean state.\n");
+        sai_status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
+    }
+
+    if (atoi(value) > 0) {
+        SX_LOG_NTC("Additional mac is enabled on live.\n");
+        g_additional_mac_enabled = true;
+    } else {
+        SX_LOG_NTC("Additional mac is disabled on live.\n");
+        g_additional_mac_enabled = false;
+    }
+
+out:
+    sai_db_unlock();
+    return sai_status;
+}
+
+bool mlnx_rif_is_ar_enabled(_In_ sai_object_id_t rif_id)
+{
+    mlnx_rif_type_t             rif_type;
+    sai_status_t                status;
+    sx_status_t                 sx_status;
+    mlnx_rif_sx_data_t         *sx_data;
+    sx_router_interface_param_t intf_params;
+    sx_interface_attributes_t   intf_attribs;
+
+    status = mlnx_rif_oid_data_fetch(rif_id, &rif_type, NULL, NULL, &sx_data, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to fetch rif oid data from rif id - %" PRIx64 ".\n", rif_id);
+        return false;
+    }
+
+    if (rif_type == MLNX_RIF_TYPE_DEFAULT) {
+        sx_status = sx_api_router_interface_get(gh_sdk, sx_data->rif_id, &sx_data->vrf_id, &intf_params,
+                                                &intf_attribs);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to get router interface - %s.\n", SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            return false;
+        }
+
+        if (SX_L2_INTERFACE_TYPE_ADAPTIVE_ROUTING == intf_params.type) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 const sai_router_interface_api_t mlnx_router_interface_api = {

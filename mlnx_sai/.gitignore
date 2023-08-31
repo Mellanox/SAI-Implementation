@@ -42,7 +42,6 @@ config.h
 config.h.in
 config.log
 config.status
-config/compile
 config/config.guess
 config/config.sub
 config/depcomp
@@ -54,16 +53,4 @@ etc/sai.pc
 libtool
 src/.deps/
 src/.libs/
-src/dbgdump/.deps/
-src/dbgdump/.dirstamp
-src/meta/.deps/
-src/meta/.dirstam
 stamp-h1
-
-# Debian files
-debian/.debhelper/
-debian/files
-debian/mlnx-sai.debhelper.log
-debian/mlnx-sai.substvars
-debian/mlnx-sai/
-

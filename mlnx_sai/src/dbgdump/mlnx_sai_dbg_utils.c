@@ -115,3 +115,17 @@ void SAI_dump_sai_enum_to_str(_In_ const sai_enum_metadata_t *metadata,
         }
     }
 }
+
+uint32_t mlnx_get_shm_rm_id(mlnx_shm_rm_array_idx_t idx)
+{
+    if (!MLNX_SHM_RM_ARRAY_IDX_IS_UNINITIALIZED(idx)) {
+        return idx.idx;
+    }
+
+    return -1;
+}
+
+void oid_to_hex_str(char *str, sai_object_id_t oid)
+{
+    snprintf(str, OID_STR_MAX_SIZE, "0x%lX", oid);
+}

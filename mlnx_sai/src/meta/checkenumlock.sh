@@ -29,9 +29,10 @@ rm -rf temp
 
 mkdir temp
 
-git --work-tree=temp/ checkout origin/master mlnx_sai/inc/sai
+git --work-tree=temp/ checkout origin/master inc
 
 echo "Checking for possible enum values shift (current branch vs origin/master) ..."
-./checkheaders.pl -s ../../inc/sai temp/mlnx_sai/inc/sai
+
+./checkheaders.pl -s ../inc/ temp/inc/
 
 rm -rf temp

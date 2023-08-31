@@ -41,8 +41,8 @@ use serialize;
 use cap;
 
 our $XMLDIR = "xml";
-our $INCLUDE_DIR = "../../inc/sai/";
-our $EXPERIMENTAL_DIR = "../../inc/experimental/";
+our $INCLUDE_DIR = "../inc/";
+our $EXPERIMENTAL_DIR = "../experimental/";
 
 our $MAX_CONDITIONS_LEN = 1;
 
@@ -88,7 +88,6 @@ my %ATTR_TAGS = (
         "range"          , \&ProcessTagRange,
         "isresourcetype" , \&ProcessTagIsRecourceType,
         "deprecated"     , \&ProcessTagDeprecated,
-        "allowrepeat"    ,\&ProcessTagAllowRepeat
         );
 
 my %options = ();
@@ -184,15 +183,7 @@ sub ProcessTagObjects
 
     return \@ots;
 }
-sub ProcessTagAllowRepeat
-{
-    my ($type, $value, $val) = @_;
 
-    return $val if $val =~ /^(true|false)$/;
-
-    LogError "allowrepeat tag value '$val', expected true/false";
-    return undef;
-}
 sub ProcessTagAllowNull
 {
     my ($type, $value, $val) = @_;
@@ -501,7 +492,7 @@ sub ProcessDescription
 
     return if scalar@order == 0;
 
-    my $rightOrder = 'type:flags(:objects)?(:allownull)?(:allowempty)?(:isvlan)?(:default)?(:range)?(:condition|:validonly)?(:isresourcetype)?(:deprecated)?(:allowrepeat)?';
+    my $rightOrder = 'type:flags(:objects)?(:allownull)?(:allowempty)?(:isvlan)?(:default)?(:range)?(:condition|:validonly)?(:isresourcetype)?(:deprecated)?';
 
     my $order = join(":",@order);
 
@@ -1097,7 +1088,7 @@ sub ProcessFunctionSection
         my $name = $memberdef->{name}[0];
         my $file = $memberdef->{location}[0]->{file};
 
-        next if not $file =~ m!inc/sai/sai\w*.h!;
+        next if not $file =~ m!inc/sai\w*.h!;
 
         LogError "api $name not starting with sai_! " if not $name =~ /^sai_\w+$/;
 
@@ -2075,7 +2066,7 @@ sub ProcessIsPrimitive
 {
     my ($attr, $type) = @_;
 
-    return "false" if $type =~ /(_list_t|acl_capability_t|sai_aggregated_port_data_t)/;
+    return "false" if $type =~ /(_list_t|acl_capability_t|_json_t)/;
 
     return "true";
 }
@@ -2373,7 +2364,7 @@ sub CreateMetadata
 
 sub ProcessSaiStatus
 {
-    my $filename = "../../inc/sai/saistatus.h";
+    my $filename = "../inc/saistatus.h";
 
     open(my $fh, '<', $filename) or die "Could not open file '$filename' $!";
 
@@ -3189,16 +3180,36 @@ sub CreateGlobalFunctions
 
     WriteHeader "";
 
-    WriteHeader "typedef enum _sai_global_api_type_t {";
+    my $typename = "sai_global_api_type_t";
+
+    my $prefix = uc $typename;
+
+    chop $prefix;
+
+    WriteHeader "typedef enum _$typename {";
+
+    my @values = ();
 
     for my $name (sort keys %GLOBAL_APIS)
     {
         my $short = uc($1) if $name =~ /^sai_(\w+)/;
 
         WriteHeader "SAI_GLOBAL_API_TYPE_$short,";
+
+        push @values, "SAI_GLOBAL_API_TYPE_$short";
     }
 
-    WriteHeader "} sai_global_api_type_t;";
+    WriteHeader "} $typename;";
+
+    $SAI_ENUMS{$typename}{values} = \@values;
+
+    WriteSectionComment "$typename metadata";
+
+    ProcessSingleEnum($typename, $typename, $prefix);
+
+    WriteSectionComment "Get $typename helper method";
+
+    CreateEnumHelperMethod($typename);
 }
 
 sub CreateApisQuery
@@ -3232,12 +3243,6 @@ sub CreateApisQuery
     for my $key (sort keys %APITOOBJMAP)
     {
         my $api = uc("SAI_API_${key}");
-
-        if ($api ne "SAI_API_SWITCH" && $api ne "SAI_API_PORT")
-        {
-            # Don't generate code that queries unsupported APIs
-            next;
-        }
 
         WriteSource "status = api_query($api, (void**)&sai_metadata_sai_${key}_api);";
         WriteSource "apis->${key}_api = sai_metadata_sai_${key}_api;";

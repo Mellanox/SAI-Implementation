@@ -24,7 +24,8 @@ static void SAI_dump_tunnel_getdb(_Out_ mlnx_tunnel_map_entry_t *tunnel_map_entr
                                   _Out_ mlnx_tunnel_entry_t     *tunnel_entry_db,
                                   _Out_ mlnx_tunneltable_t      *tunneltable_db,
                                   _Out_ mlnx_bmtor_bridge_t     *bmtor_bridge_db,
-                                  _Out_ sx_bridge_id_t          *sx_bridge_id)
+                                  _Out_ sx_bridge_id_t          *sx_bridge_id,
+                                  _Out_ mlnx_dscp_remapping_t   *dscp_remapping_db)
 {
     assert(NULL != tunnel_map_entry_db);
     assert(NULL != tunnel_map_db);
@@ -32,6 +33,7 @@ static void SAI_dump_tunnel_getdb(_Out_ mlnx_tunnel_map_entry_t *tunnel_map_entr
     assert(NULL != tunneltable_db);
     assert(NULL != bmtor_bridge_db);
     assert(NULL != sx_bridge_id);
+    assert(NULL != dscp_remapping_db);
     assert(NULL != g_sai_db_ptr);
 
     sai_db_read_lock();
@@ -57,6 +59,10 @@ static void SAI_dump_tunnel_getdb(_Out_ mlnx_tunnel_map_entry_t *tunnel_map_entr
            MLNX_BMTOR_BRIDGE_MAX * sizeof(mlnx_bmtor_bridge_t));
 
     *sx_bridge_id = g_sai_db_ptr->sx_bridge_id;
+
+    memcpy(dscp_remapping_db,
+           g_sai_tunnel_db_ptr->dscp_remapping_db,
+           1 * sizeof(mlnx_dscp_remapping_t));
 
     sai_db_unlock();
 }
@@ -520,6 +526,10 @@ static void SAI_dump_sdk_tunnel_type_enum_to_str(_In_ sx_tunnel_type_e type, _Ou
         strcpy(str, "vxlan gpe");
         break;
 
+    case SX_TUNNEL_TYPE_NVE_VXLAN_IPV6:
+        strcpy(str, "vxlan ipv6");
+        break;
+
     case SX_TUNNEL_TYPE_NVE_GENEVE:
         strcpy(str, "geneve");
         break;
@@ -650,6 +660,163 @@ static void SAI_dump_bridge_print(_In_ FILE *file, _In_ sx_bridge_id_t *sx_bridg
     dbg_utils_print(file, "\n");
 }
 
+static void SAI_dump_tunnel_qos_print(_In_ FILE *file, _In_ tunnel_qos_data_t *tunnel_qos_data)
+{
+    tunnel_qos_data_t         curr_tunnel_qos_data;
+    dbg_utils_table_columns_t tunnel_qos_data_clmns[] = {
+        {"encap tc to dscp mapping oid",              30, PARAM_UINT64_E,
+         &curr_tunnel_qos_data.encap_tc_to_dscp_mapping},
+        {"encap tc to queue mapping oid",             30, PARAM_UINT64_E,
+         &curr_tunnel_qos_data.encap_tc_to_queue_mapping},
+        {"encap rif oid",                             13, PARAM_UINT64_E, &curr_tunnel_qos_data.encap_rif_oid},
+        {"decap dscp to tc mapping oid",              30, PARAM_UINT64_E,
+         &curr_tunnel_qos_data.decap_dscp_to_tc_mapping},
+        {"decap tc to pg mapping oid",                30, PARAM_UINT64_E,
+         &curr_tunnel_qos_data.decap_tc_to_pg_mapping},
+        {"decap rif oid",                             13, PARAM_UINT64_E, &curr_tunnel_qos_data.decap_rif_oid},
+        {NULL,                                        0,  0,              NULL}
+    };
+
+    assert(NULL != tunnel_qos_data);
+
+    dbg_utils_print_secondary_header(file, "Tunnel QoS data");
+
+    dbg_utils_print_table_headline(file, tunnel_qos_data_clmns);
+
+    memcpy(&curr_tunnel_qos_data, tunnel_qos_data, sizeof(tunnel_qos_data_t));
+
+    dbg_utils_print_table_data_line(file, tunnel_qos_data_clmns);
+}
+
+static void SAI_dump_port_qos_print(_In_ FILE *file, _In_ port_qos_db_t *port_qos_db)
+{
+    uint32_t                  ii = 0;
+    port_qos_db_t             curr_port_qos_db;
+    sai_object_id_t           uplink_tc_to_pg_mapping_oid, uplink_tc_to_queue_mapping_oid;
+    bool                      dscp_remapping_done;
+    sx_port_log_id_t          uplink_port_id;
+    dbg_utils_table_columns_t port_qos_db_clmns[] = {
+        {"effective tc to pg mapping oid",              35, PARAM_UINT64_E,
+         &curr_port_qos_db.effective_tc_to_pg_mapping},
+        {"effective tc to queue mapping oid",           35, PARAM_UINT64_E,
+         &curr_port_qos_db.effective_tc_to_queue_mapping},
+        {NULL,                                          0,  0,              NULL}
+    };
+    dbg_utils_table_columns_t uplink_qos_db_clmns[] = {
+        {"uplink port id",                              15, PARAM_UINT32_E, &uplink_port_id},
+        {"uplink tc to pg mapping oid",                 30, PARAM_UINT64_E, &uplink_tc_to_pg_mapping_oid},
+        {"uplink tc to queue mapping oid",              30, PARAM_UINT64_E, &uplink_tc_to_queue_mapping_oid},
+        {"dscp remapping done",                         20, PARAM_UINT8_E,  &dscp_remapping_done},
+        {NULL,                                          0,  0,              NULL}
+    };
+
+    assert(NULL != port_qos_db);
+
+    dbg_utils_print_secondary_header(file, "Uplink port data");
+
+    dbg_utils_print_table_headline(file, port_qos_db_clmns);
+    memcpy(&curr_port_qos_db, port_qos_db, sizeof(port_qos_db_t));
+    dbg_utils_print_table_data_line(file, port_qos_db_clmns);
+
+    dbg_utils_print_secondary_header(file, "Uplink port mappings");
+    dbg_utils_print_table_headline(file, uplink_qos_db_clmns);
+
+    for (ii = 0; ii < MAX_UPLINK_PORTS; ii++) {
+        if (curr_port_qos_db.uplink_port_list_in_use[ii]) {
+            uplink_port_id = curr_port_qos_db.uplink_port_list[ii];
+            uplink_tc_to_pg_mapping_oid = curr_port_qos_db.uplink_tc_to_pg_mapping[ii];
+            uplink_tc_to_queue_mapping_oid = curr_port_qos_db.uplink_tc_to_queue_mapping[ii];
+            dscp_remapping_done = curr_port_qos_db.uplink_port_rewrite_done[ii];
+            dbg_utils_print_table_data_line(file, uplink_qos_db_clmns);
+        }
+    }
+}
+
+static void SAI_dump_remapping_acl_print(_In_ FILE *file, _In_ remapping_acl_data_t *remapping_acl_data)
+{
+    remapping_acl_data_t      curr_remapping_acl_data;
+    uint32_t                  from_tc, to_tc, acl_entry;
+    uint32_t                  ii = 0;
+    dbg_utils_table_columns_t remapping_acl_data_clmns[] = {
+        {"acl binding rif",              20,  PARAM_UINT64_E, &curr_remapping_acl_data.acl_binding_rif},
+        {"acl group id",                 20,  PARAM_UINT32_E, &curr_remapping_acl_data.group_id},
+        {"acl key handle",               20,  PARAM_UINT32_E, &curr_remapping_acl_data.key_handle},
+        {"acl region id",                20,  PARAM_UINT32_E, &curr_remapping_acl_data.region_id},
+        {"acl table id",                 20,  PARAM_UINT32_E, &curr_remapping_acl_data.acl_id},
+        {"tc mapping count",             20,  PARAM_UINT32_E, &curr_remapping_acl_data.acl_rule_count},
+        {"acl rule count",               20,  PARAM_UINT32_E, &curr_remapping_acl_data.tc_map.count},
+        {NULL,                           0,   0,              NULL}
+    };
+    dbg_utils_table_columns_t tc_mapping_clmns[] = {
+        {"from tc",                            9,  PARAM_UINT32_E, &from_tc},
+        {"to tc",                              9,  PARAM_UINT32_E, &to_tc},
+        {NULL,                                 0,  0,              NULL}
+    };
+    dbg_utils_table_columns_t acl_rule_clmns[] = {
+        {"acl rule offset",                    15, PARAM_UINT32_E, &acl_entry},
+        {NULL,                                 0,  0,              NULL}
+    };
+
+    assert(NULL != remapping_acl_data);
+
+    dbg_utils_print_secondary_header(file, "Remapping acl data");
+
+    dbg_utils_print_table_headline(file, remapping_acl_data_clmns);
+
+    for (ii = 0; ii < DSCP_REMAPPING_TUNNEL_TYPE_MAX; ii++) {
+        memcpy(&curr_remapping_acl_data, &remapping_acl_data[ii], sizeof(remapping_acl_data_t));
+        dbg_utils_print_table_data_line(file, remapping_acl_data_clmns);
+    }
+
+    dbg_utils_print_secondary_header(file, "Encap tc mappings");
+    dbg_utils_print_table_headline(file, tc_mapping_clmns);
+
+    for (ii = 0; ii < remapping_acl_data[DSCP_REMAPPING_TUNNEL_TYPE_ENCAP].tc_map.count; ii++) {
+        from_tc = remapping_acl_data[DSCP_REMAPPING_TUNNEL_TYPE_ENCAP].tc_map.from.prio_color[ii].priority;
+        to_tc = remapping_acl_data[DSCP_REMAPPING_TUNNEL_TYPE_ENCAP].tc_map.to.prio_color[ii].priority;
+        dbg_utils_print_table_data_line(file, tc_mapping_clmns);
+    }
+
+    dbg_utils_print_secondary_header(file, "Encap acl rules");
+    dbg_utils_print_table_headline(file, acl_rule_clmns);
+
+    for (ii = 0; ii < remapping_acl_data[DSCP_REMAPPING_TUNNEL_TYPE_ENCAP].acl_rule_count; ii++) {
+        acl_entry = remapping_acl_data[DSCP_REMAPPING_TUNNEL_TYPE_ENCAP].acl_rule_id[ii];
+        dbg_utils_print_table_data_line(file, acl_rule_clmns);
+    }
+
+    dbg_utils_print_secondary_header(file, "Decap tc mappings");
+    dbg_utils_print_table_headline(file, tc_mapping_clmns);
+
+    for (ii = 0; ii < remapping_acl_data[DSCP_REMAPPING_TUNNEL_TYPE_DECAP].tc_map.count; ii++) {
+        from_tc = remapping_acl_data[DSCP_REMAPPING_TUNNEL_TYPE_DECAP].tc_map.from.prio_color[ii].priority;
+        to_tc = remapping_acl_data[DSCP_REMAPPING_TUNNEL_TYPE_DECAP].tc_map.to.prio_color[ii].priority;
+        dbg_utils_print_table_data_line(file, tc_mapping_clmns);
+    }
+
+    dbg_utils_print_secondary_header(file, "Decap acl rules");
+    dbg_utils_print_table_headline(file, acl_rule_clmns);
+
+    for (ii = 0; ii < remapping_acl_data[DSCP_REMAPPING_TUNNEL_TYPE_DECAP].acl_rule_count; ii++) {
+        acl_entry = remapping_acl_data[DSCP_REMAPPING_TUNNEL_TYPE_DECAP].acl_rule_id[ii];
+        dbg_utils_print_table_data_line(file, acl_rule_clmns);
+    }
+}
+
+static void SAI_dump_dscp_remapping_print(_In_ FILE *file, _In_ mlnx_dscp_remapping_t *dscp_remapping_db)
+{
+    assert(NULL != dscp_remapping_db);
+    dbg_utils_print_general_header(file, "DSCP Remapping");
+    dbg_utils_print_field(file, "DSCP remapping enabled", &dscp_remapping_db->dscp_remapping_enabled, PARAM_UINT8_E);
+    dbg_utils_print(file, "\n");
+    if (!dscp_remapping_db->dscp_remapping_enabled) {
+        return;
+    }
+    SAI_dump_tunnel_qos_print(file, &dscp_remapping_db->tunnel_qos_data);
+    SAI_dump_port_qos_print(file, &dscp_remapping_db->port_qos_db);
+    SAI_dump_remapping_acl_print(file, &dscp_remapping_db->remapping_acl_data[0]);
+}
+
 void SAI_dump_tunnel(_In_ FILE *file)
 {
     mlnx_tunnel_map_entry_t *tunnel_map_entry_db = NULL;
@@ -657,6 +824,7 @@ void SAI_dump_tunnel(_In_ FILE *file)
     mlnx_tunnel_entry_t     *tunnel_entry_db = NULL;
     mlnx_tunneltable_t      *tunneltable_db = NULL;
     mlnx_bmtor_bridge_t     *bmtor_bridge_db = NULL;
+    mlnx_dscp_remapping_t   *dscp_remapping_db = NULL;
     sx_bridge_id_t           sx_bridge_id = 0;
 
     tunnel_map_entry_db =
@@ -665,7 +833,9 @@ void SAI_dump_tunnel(_In_ FILE *file)
     tunnel_entry_db = (mlnx_tunnel_entry_t*)calloc(MAX_TUNNEL_DB_SIZE, sizeof(mlnx_tunnel_entry_t));
     tunneltable_db = (mlnx_tunneltable_t*)calloc(MLNX_TUNNELTABLE_SIZE, sizeof(mlnx_tunneltable_t));
     bmtor_bridge_db = (mlnx_bmtor_bridge_t*)calloc(MLNX_BMTOR_BRIDGE_MAX, sizeof(mlnx_bmtor_bridge_t));
-    if ((!tunnel_map_entry_db) || (!tunnel_map_db) || (!tunnel_entry_db) || (!tunneltable_db) || (!bmtor_bridge_db)) {
+    dscp_remapping_db = (mlnx_dscp_remapping_t*)calloc(1, sizeof(mlnx_dscp_remapping_t));
+    if ((!tunnel_map_entry_db) || (!tunnel_map_db) || (!tunnel_entry_db) || (!tunneltable_db) || (!bmtor_bridge_db) ||
+        (!dscp_remapping_db)) {
         if (tunnel_map_entry_db) {
             free(tunnel_map_entry_db);
         }
@@ -681,6 +851,9 @@ void SAI_dump_tunnel(_In_ FILE *file)
         if (bmtor_bridge_db) {
             free(bmtor_bridge_db);
         }
+        if (dscp_remapping_db) {
+            free(dscp_remapping_db);
+        }
         return;
     }
 
@@ -689,7 +862,8 @@ void SAI_dump_tunnel(_In_ FILE *file)
                           tunnel_entry_db,
                           tunneltable_db,
                           bmtor_bridge_db,
-                          &sx_bridge_id);
+                          &sx_bridge_id,
+                          dscp_remapping_db);
     dbg_utils_print_module_header(file, "SAI Tunnel");
     SAI_dump_tunnel_map_entry_print(file, tunnel_map_entry_db);
     SAI_dump_tunnel_map_print(file, tunnel_map_db, tunnel_map_entry_db);
@@ -697,10 +871,12 @@ void SAI_dump_tunnel(_In_ FILE *file)
     SAI_dump_tunnel_table_print(file, tunneltable_db);
     SAI_dump_bmtor_bridge_print(file, bmtor_bridge_db);
     SAI_dump_bridge_print(file, &sx_bridge_id);
+    SAI_dump_dscp_remapping_print(file, dscp_remapping_db);
 
     free(tunnel_map_entry_db);
     free(tunnel_map_db);
     free(tunnel_entry_db);
     free(tunneltable_db);
     free(bmtor_bridge_db);
+    free(dscp_remapping_db);
 }

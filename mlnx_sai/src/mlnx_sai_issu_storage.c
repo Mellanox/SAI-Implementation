@@ -94,6 +94,7 @@ static sai_status_t mlnx_sai_issu_storage_construct_pbh_info(_In_ uint32_t      
                                                              _Out_ mlnx_sai_issu_gp_reg_info_elem *gp_reg_info_item);
 static sai_status_t mlnx_sai_issu_collect_pbh_info(_Inout_ mlnx_sai_issu_gp_reg_info *gp_reg_info,
                                                    _In_ mlnx_gp_reg_usage_t           gp_reg_usage);
+static void mlnx_sai_issu_collect_aeth_syndrome_info(_In_ mlnx_sai_issu_gp_reg_info *gp_reg_info);
 static bool mlnx_sai_issu_storage_compare_pbh_info(_In_ const mlnx_sai_issu_gp_reg_info_elem *gp_reg_info_a,
                                                    _In_ const mlnx_sai_issu_gp_reg_info_elem *gp_reg_info_b);
 static sai_status_t mlnx_sai_issu_collect_udf_info(_Inout_ mlnx_sai_issu_gp_reg_info *gp_reg_info);
@@ -196,7 +197,7 @@ static sai_status_t mlnx_sai_issu_storage_pre_shutdown_prepare_spc2(void)
 {
     sai_status_t              sai_status = SAI_STATUS_SUCCESS;
     uint32_t                  ii = 0;
-    bool                      is_ip_ident_store = false;
+    bool                      is_ip_ident_store = false, is_aeth_syndrome_store = false;
     bool                      is_udf_store = false;
     bool                      is_pbh_one_store = false;
     bool                      is_pbh_two_store = false;
@@ -255,6 +256,11 @@ static sai_status_t mlnx_sai_issu_storage_pre_shutdown_prepare_spc2(void)
             is_ip_ident_store = true;
             break;
 
+        case GP_REG_USED_AETH_SYNDROME_RC:
+        case GP_REG_USED_AETH_SYNDROME_RD:
+            is_aeth_syndrome_store = true;
+            break;
+
         default:
             sai_status = SAI_STATUS_FAILURE;
             goto out;
@@ -287,6 +293,10 @@ static sai_status_t mlnx_sai_issu_storage_pre_shutdown_prepare_spc2(void)
         if (SAI_ERR(sai_status)) {
             goto out;
         }
+    }
+
+    if (is_aeth_syndrome_store) {
+        mlnx_sai_issu_collect_aeth_syndrome_info(&gp_reg_info);
     }
 
     if (gp_reg_info.count) {
@@ -975,6 +985,38 @@ out:
     return sai_status;
 }
 
+static void mlnx_sai_issu_collect_aeth_syndrome_info(_In_ mlnx_sai_issu_gp_reg_info *gp_reg_info)
+{
+    uint32_t         gp_reg_mask = 0;
+    sx_gp_register_e gp_reg_idx = SX_GP_REGISTER_LAST_E;
+
+    SX_LOG_ENTER();
+
+    assert(gp_reg_info);
+    assert(g_sai_acl_db_ptr->acl_settings_tbl->aeth_syndrome_keys.refs);
+
+    gp_reg_idx = MLNX_FLEX_ACL_KEY_TO_SX_GP_REG(
+        g_sai_acl_db_ptr->acl_settings_tbl->aeth_syndrome_keys.sx_keys[KEY_RC]);
+    assert(gp_reg_idx < SX_GP_REGISTER_LAST_E);
+    gp_reg_mask |= (1 << gp_reg_idx);
+
+    gp_reg_info->gp_reg_arr[gp_reg_info->count].gp_reg_bitmask = gp_reg_mask;
+    gp_reg_info->gp_reg_arr[gp_reg_info->count].type = GP_REG_USED_AETH_SYNDROME_RC;
+    gp_reg_info->count++;
+
+    gp_reg_mask = 0;
+    gp_reg_idx = MLNX_FLEX_ACL_KEY_TO_SX_GP_REG(
+        g_sai_acl_db_ptr->acl_settings_tbl->aeth_syndrome_keys.sx_keys[KEY_RD]);
+    assert(gp_reg_idx < SX_GP_REGISTER_LAST_E);
+    gp_reg_mask |= (1 << gp_reg_idx);
+
+    gp_reg_info->gp_reg_arr[gp_reg_info->count].gp_reg_bitmask = gp_reg_mask;
+    gp_reg_info->gp_reg_arr[gp_reg_info->count].type = GP_REG_USED_AETH_SYNDROME_RD;
+    gp_reg_info->count++;
+
+    SX_LOG_EXIT();
+}
+
 static sai_status_t mlnx_sai_issu_prepare_paths(const char* persistent_path)
 {
     sai_status_t sai_status = SAI_STATUS_SUCCESS;
@@ -993,6 +1035,7 @@ static sai_status_t mlnx_sai_issu_prepare_paths(const char* persistent_path)
         }
     }
     strncpy(g_issu_pbh_transition_flag_path, g_issu_gp_reg_path, MLNX_SAI_ISSU_PATH_LEN_MAX - 1);
+    g_issu_pbh_transition_flag_path[MLNX_SAI_ISSU_PATH_LEN_MAX - 1] = '\0';
 
     len = strlen(g_issu_pbh_transition_flag_path);
     size_to_cat = MLNX_SAI_ISSU_PATH_LEN_MAX - len - 1;
@@ -1019,7 +1062,7 @@ static sai_status_t mlnx_sai_issu_restore_info_spc2()
 
     sai_status = mlnx_sai_issu_storage_open(g_issu_gp_reg_path, "rb", &file_p);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_WRN("ISSU persistent file does not exist\n");
+        SX_LOG_NTC("ISSU persistent file does not exist\n");
         sai_status = SAI_STATUS_SUCCESS;
         goto out;
     }
@@ -1338,6 +1381,44 @@ sai_status_t mlnx_sai_issu_storage_udf_gp_reg_idx_lookup(_Out_ sx_gp_register_e 
         /* mismatch between udfs configuration, non relevant or incomplete
          * (if two blocks of memory are not equal memcmp returns non 0)*/
         if (memcmp(&udf_info, &(g_gp_reg_info->gp_reg_arr[ii].udf), sizeof(udf_info))) {
+            continue;
+        }
+
+        for (jj = 0; jj < MLNX_UDF_GP_REG_COUNT; ++jj) {
+            if (g_gp_reg_info->gp_reg_arr[ii].gp_reg_bitmask & (1 << jj)) {
+                if (g_gp_reg_info->is_gp_reg_in_use[jj]) {
+                    continue;
+                }
+                g_gp_reg_info->is_gp_reg_in_use[jj] = true;
+                *reg_id = jj;
+                goto out;
+            }
+        }
+    }
+
+    sai_status = SAI_STATUS_ITEM_NOT_FOUND;
+
+out:
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+sai_status_t mlnx_sai_issu_storage_aeth_syndrome_gp_reg_idx_lookup(_In_ mlnx_gp_reg_usage_t type,
+                                                                   _Out_ sx_gp_register_e  *reg_id)
+{
+    sai_status_t sai_status = SAI_STATUS_SUCCESS;
+    uint32_t     ii, jj;
+
+    SX_LOG_ENTER();
+
+    assert(reg_id);
+    assert(g_sai_db_ptr->is_issu_gp_reg_restore);
+    assert(g_gp_reg_info);
+    assert(g_gp_reg_info->is_gp_reg_in_use);
+    assert(g_gp_reg_info->gp_reg_arr);
+
+    for (ii = 0; ii < g_gp_reg_info->count; ++ii) {
+        if (type != g_gp_reg_info->gp_reg_arr[ii].type) {
             continue;
         }
 

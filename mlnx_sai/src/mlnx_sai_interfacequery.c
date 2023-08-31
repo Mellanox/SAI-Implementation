@@ -25,7 +25,6 @@
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 sai_service_method_table_t g_mlnx_services;
-bool                       g_is_chipsim;
 static bool                g_initialized = false;
 
 typedef struct mlnx_log_lavel_preinit {
@@ -37,9 +36,8 @@ static mlnx_log_lavel_preinit_t mlnx_sai_log_levels[SAI_API_EXTENSIONS_RANGE_END
     {0}
 };
 
-sai_status_t sai_log_set_ib(_In_ sai_api_t sai_api_id, sx_log_severity_t severity);
-sai_status_t sai_api_query_ib(_In_ sai_api_t sai_api_id, _Out_ void** api_method_table);
-static bool is_chipsim_machine();
+sai_status_t sai_log_set_eth(_In_ sai_api_t sai_api_id, sx_log_severity_t severity);
+sai_status_t sai_api_query_eth(_In_ sai_api_t sai_api_id, _Out_ void** api_method_table);
 
 sai_status_t mlnx_interfacequery_log_set(sx_verbosity_level_t level)
 {
@@ -86,8 +84,6 @@ sai_status_t sai_api_initialize(_In_ uint64_t flags, _In_ const sai_service_meth
 
     g_initialized = true;
 
-    g_is_chipsim = is_chipsim_machine();
-
     return SAI_STATUS_SUCCESS;
 }
 
@@ -116,7 +112,7 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    return sai_api_query_ib(sai_api_id, api_method_table);
+    return sai_api_query_eth(sai_api_id, api_method_table);
 }
 
 /*
@@ -175,11 +171,6 @@ sai_status_t mlnx_sai_log_levels_post_init(void)
 
     for (api = SAI_API_SWITCH; api < (sai_api_t)SAI_API_EXTENSIONS_RANGE_END; api++) {
         if (mlnx_sai_log_levels[api].is_set) {
-            /* Related to Bug #3374691
-             * TODO: Remove when removing all ETH API files*/
-            if (!((api == SAI_API_SWITCH) || (api == SAI_API_PORT))) {
-                continue;
-            }
             MLNX_SAI_LOG_INF("Restoring log level %d for API %d\n",  mlnx_sai_log_levels[api].level, api);
             status = sai_log_set(api, mlnx_sai_log_levels[api].level);
             if (SAI_ERR(status) && (SAI_STATUS_NOT_IMPLEMENTED != status)) {
@@ -244,7 +235,7 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
         return status;
     }
 
-    return sai_log_set_ib(sai_api_id, severity);
+    return sai_log_set_eth(sai_api_id, severity);
 }
 
 /*
@@ -262,12 +253,12 @@ sai_object_type_t sai_object_type_query(_In_ sai_object_id_t sai_object_id)
 {
     sai_object_type_t type = ((mlnx_object_id_t*)&sai_object_id)->object_type;
 
-    if (SAI_TYPE_CHECK_RANGE(type)) {
-        return type;
-    } else {
-        MLNX_SAI_LOG_ERR("Unknown type %d", type);
+    if (!SAI_TYPE_CHECK_RANGE(type)) {
+        MLNX_SAI_LOG_ERR("Unknown type %d\n", type);
         return SAI_OBJECT_TYPE_NULL;
     }
+
+    return type;
 }
 
 /**
@@ -289,14 +280,4 @@ sai_object_id_t sai_switch_id_query(_In_ sai_object_id_t sai_object_id)
     mlnx_switch_id.id.is_created = true;
     mlnx_object_id_to_sai(SAI_OBJECT_TYPE_SWITCH, &mlnx_switch_id, &switch_id);
     return switch_id;
-}
-
-/**
- * @brief Query PCI Driver for Chipsim PCI driver.
- *
- * @return True if system call returns 0, false for other value.
- */
-static bool is_chipsim_machine()
-{
-    return system("lspci -vv | grep QEMU > /dev/null") == 0;
 }
